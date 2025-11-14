@@ -1,0 +1,77 @@
+### odoo_call:
+Connecte l'agent à une instance Odoo via l'API XML-RPC pour interroger les données métier (ventes, clients, produits, etc.).
+Peut appeler des méthodes Odoo comme 'search', 'search_read', 'read', 'read_group', 'create', 'write'.
+
+Arguments:
+- model: Nom du modèle Odoo (ex: 'sale.order', 'res.partner', 'product.product')
+- method: Méthode à appeler (ex: 'search_read', 'read_group')
+- domain: Liste de filtres Odoo (ex: [["date_order", ">=", "2024-01-01"]])
+- fields: Liste des champs à retourner (ex: ["name", "amount_total", "state"])
+- options: Dictionnaire d'options supplémentaires (limit, offset, order, groupby)
+
+Notes:
+- Les domaines Odoo sont des listes de conditions.
+- Les dates doivent être au format ISO (YYYY-MM-DD).
+- Limitez les résultats pour éviter de surcharger le contexte.
+
+**Example usage**:
+~~~json
+{
+  "thoughts": ["J'ai besoin des ventes du jour"],
+  "headline": "Ventes du jour",
+  "tool_name": "odoo_call",
+  "tool_args": {
+    "model": "sale.order",
+    "method": "search_read",
+    "domain": [["date_order", ">=", "2025-11-14 00:00:00"], ["date_order", "<=", "2025-11-14 23:59:59"]],
+    "fields": ["name", "partner_id", "amount_total", "state"],
+    "options": {"limit": 50, "order": "date_order desc"}
+  }
+}
+~~~
+
+~~~json
+{
+  "thoughts": ["Regrouper les ventes par mois"],
+  "headline": "Statistiques ventes par mois",
+  "tool_name": "odoo_call",
+  "tool_args": {
+    "model": "sale.order",
+    "method": "read_group",
+    "domain": [["state", "in", ["sale", "done"]]],
+    "options": {
+      "fields": ["amount_total:sum"],
+      "groupby": ["date_order:month"]
+    }
+  }
+}
+~~~
+
+~~~json
+{
+  "thoughts": ["Lister les clients actifs"],
+  "headline": "Liste des clients",
+  "tool_name": "odoo_call",
+  "tool_args": {
+    "model": "res.partner",
+    "method": "search_read",
+    "domain": [["customer_rank", ">", 0]],
+    "fields": ["name", "email", "phone"],
+    "options": {"limit": 100}
+  }
+}
+~~~
+
+~~~json
+{
+  "thoughts": ["Lire une commande spécifique"],
+  "headline": "Détails d'une commande",
+  "tool_name": "odoo_call",
+  "tool_args": {
+    "model": "sale.order",
+    "method": "read",
+    "ids": [42],
+    "fields": ["name", "amount_total", "state", "partner_id"]
+  }
+}
+~~~

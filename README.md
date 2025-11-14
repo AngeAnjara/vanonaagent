@@ -339,6 +339,29 @@ Default models set to gpt-4.1
 - **Reflection Prompts**
 - **Bug Fixes**
 
+## 🧩 Odoo Integration
+
+Agent Zero can connect to your Odoo instance using the native XML-RPC API (no extra dependencies) via a built-in tool named `odoo_call`. This lets the agent query business data (sales, customers, products, inventory, CRM, etc.) according to the permissions of the configured Odoo user.
+
+### Setup
+1. Create a `.env` file at the project root (or copy `.env.example` to `.env`).
+2. Add the following variables:
+   - `ODOO_URL` (e.g. `http://localhost:9090`)
+   - `ODOO_DB` (your Odoo database name)
+   - `ODOO_USER` (username or email)
+   - `ODOO_PASSWORD` (password or API key)
+3. Restart Agent Zero.
+
+Note: `.env` files are ignored by Docker builds (see `.dockerignore`), keeping your credentials safe.
+
+### Example
+Ask: "Quelles sont les ventes du jour ?"
+
+The agent will use `odoo_call` to query `sale.order` with a date filter and present a concise summary. You can also request trends or recommendations; the agent will fetch the relevant data (e.g., via `read_group`) and analyze it.
+
+### Available
+- Tool: `odoo_call` – calls Odoo models/methods like `search`, `search_read`, `read`, `read_group`, `create`, `write`.
+
 ## 🤝 Community and Support
 
 - [Join our Discord](https://discord.gg/B8KZKNsPpj) for live discussions or [visit our Skool Community](https://www.skool.com/agent-zero).

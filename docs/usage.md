@@ -102,6 +102,28 @@ Agent Zero's power comes from its ability to use [tools](architecture.md#tools).
 
 - **Understand Tools:** Agent Zero includes default tools like knowledge (powered by SearXNG), code execution, and communication. Understand the capabilities of these tools and how to invoke them.
 
+## Interroger votre instance Odoo
+
+Permettez à l'agent d'accéder à vos données métier dans Odoo grâce à l'outil `odoo_call` (API XML-RPC native, aucune dépendance externe). L'agent traduit automatiquement vos questions en requêtes adaptées aux modèles/méthodes Odoo.
+
+### Types de questions
+- **Ventes:** "Quelles sont les ventes du jour/mois ?", "Quel est le chiffre d'affaires total ?"
+- **Clients:** "Liste des nouveaux clients ce mois", "Qui sont mes meilleurs clients ?"
+- **Produits:** "Quels produits se vendent le mieux ?", "Quel est le stock disponible ?"
+- **Analyses:** "Donne-moi des conseils pour améliorer les ventes", "Analyse les tendances de vente"
+
+### Limitations
+- Accès limité par les permissions de l'utilisateur Odoo configuré (via `.env`).
+- Les opérations de modification (`create`, `write`, `delete`) doivent être utilisées avec précaution.
+- Pour de grands volumes, l'agent peut effectuer plusieurs requêtes (utilisez `limit`, `offset`).
+
+### Exemples de conversation
+- **Utilisateur:** "Quelles sont les ventes d'aujourd'hui ?"
+- **Agent:** Utilise `odoo_call` pour rechercher les commandes du jour sur `sale.order` (`search_read`), puis présente un résumé.
+
+- **Utilisateur:** "Donne-moi des conseils pour améliorer les ventes"
+- **Agent:** Récupère des statistiques via `read_group` (par mois, état, produit), analyse les tendances et fournit des recommandations.
+
 ## Example of Tools Usage: Web Search and Code Execution
 Let's say you want Agent Zero to perform some financial analysis tasks. Here's a possible prompt:
 
