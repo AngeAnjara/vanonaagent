@@ -1,15 +1,11 @@
 import { createStore } from "/js/AlpineStore.js";
 
-const PASSWORD_PLACEHOLDER = "****PSWD****";
-
 const model = {
   enabled: false,
   url: "",
   db: "",
   user: "",
   password: "",
-  passwordExists: false,
-  passwordClear: false,
   isSaving: false,
   isTesting: false,
   statusMessage: "",
@@ -47,15 +43,7 @@ const model = {
       this.db = getField("odoo_db").value || "";
       this.user = getField("odoo_user").value || "";
 
-      const pwdField = getField("odoo_password");
-      const existsField = getField("odoo_password_exists");
-      if (existsField && typeof existsField.value !== "undefined") {
-        this.passwordExists = !!existsField.value;
-      } else {
-        this.passwordExists = !!pwdField.value;
-      }
-      this.password = "";
-      this.passwordClear = false;
+      this.password = getField("odoo_password").value || "";
     } catch (err) {
       console.error("Error loading Odoo settings", err);
       this.statusMessage = "Error loading Odoo settings.";
@@ -97,18 +85,7 @@ const model = {
       setField("odoo_url", this.url);
       setField("odoo_db", this.db);
       setField("odoo_user", this.user);
-
-      const trimmedPassword = (this.password || "").trim();
-      if (this.passwordClear) {
-        setField("odoo_password_clear", true);
-      } else {
-        setField("odoo_password_clear", false);
-        if (trimmedPassword.length > 0) {
-          setField("odoo_password", trimmedPassword);
-        } else if (this.passwordExists === true) {
-          setField("odoo_password", PASSWORD_PLACEHOLDER);
-        }
-      }
+      setField("odoo_password", this.password || "");
 
       const saveResp = await fetchApi("/settings_set", {
         method: "POST",
@@ -121,8 +98,6 @@ const model = {
         this.statusMessage = "Odoo settings saved successfully.";
         this.statusType = "success";
         await this.loadFromSettings();
-        this.password = "";
-        this.passwordClear = false;
         window.toastFrontendInfo("Odoo settings saved.", "Odoo Settings");
       } else {
         this.statusMessage = "Failed to save Odoo settings.";

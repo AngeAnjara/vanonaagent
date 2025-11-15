@@ -117,8 +117,6 @@ class Settings(TypedDict):
     odoo_db: str
     odoo_user: str
     odoo_password: str
-    odoo_password_exists: bool
-    odoo_password_clear: bool
 
 class PartialSettings(Settings, total=False):
     pass
@@ -633,31 +631,9 @@ def convert_out(settings: Settings) -> SettingsOutput:
         {
             "id": "odoo_password",
             "title": "Password",
-            "description": "Odoo password or API key.",
-            "type": "password",
-            "value": PASSWORD_PLACEHOLDER if settings["odoo_password"] else "",
-        }
-    )
-
-    odoo_fields.append(
-        {
-            "id": "odoo_password_exists",
-            "title": "Odoo password exists",
-            "description": "Internal flag indicating whether an Odoo password is configured.",
-            "type": "hidden",
-            "value": bool(settings.get("odoo_password", "").strip()),
-            "hidden": True,
-        }
-    )
-
-    odoo_fields.append(
-        {
-            "id": "odoo_password_clear",
-            "title": "Clear Odoo password",
-            "description": "Internal flag used to clear stored Odoo password.",
-            "type": "switch",
-            "value": False,
-            "hidden": True,
+            "description": "Odoo password or API key. This value is stored and displayed in plain text.",
+            "type": "text",
+            "value": settings["odoo_password"],
         }
     )
 
@@ -1459,12 +1435,6 @@ def normalize_settings(settings: Settings) -> Settings:
     # mcp server token is set automatically
     copy["mcp_server_token"] = create_auth_token()
 
-    # load sensitive Odoo password from dotenv, never from JSON file
-    try:
-        copy["odoo_password"] = dotenv.get_dotenv_value("ODOO_PASSWORD") or ""
-    except Exception:
-        copy["odoo_password"] = ""
-
     return copy
 
 
@@ -1501,8 +1471,6 @@ def _remove_sensitive_settings(settings: Settings):
     settings["root_password"] = ""
     settings["mcp_server_token"] = ""
     settings["secrets"] = ""
-    settings["odoo_password"] = ""
-    settings["odoo_password_clear"] = False
 
 
 def _write_sensitive_settings(settings: Settings):
@@ -1519,16 +1487,6 @@ def _write_sensitive_settings(settings: Settings):
         dotenv.save_dotenv_value(dotenv.KEY_ROOT_PASSWORD, settings["root_password"])
     if settings["root_password"]:
         set_root_password(settings["root_password"])
-
-    # Odoo password stored in dotenv only
-    if settings.get("odoo_password_clear"):
-        settings["odoo_password_clear"] = False
-
-    odoo_password = settings.get("odoo_password", "") or ""
-    if odoo_password == "":
-        dotenv.remove_dotenv_value("ODOO_PASSWORD")
-    else:
-        dotenv.save_dotenv_value("ODOO_PASSWORD", odoo_password)
 
     # Handle secrets separately - merge with existing preserving comments/order and support deletions
     secrets_manager = SecretsManager.get_instance()
@@ -1622,8 +1580,6 @@ def get_default_settings() -> Settings:
         odoo_db="",
         odoo_user="",
         odoo_password="",
-        odoo_password_exists=False,
-        odoo_password_clear=False,
     )
 
 

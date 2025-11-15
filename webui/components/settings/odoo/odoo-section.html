@@ -78,30 +78,46 @@
                     </div>
                 </div>
 
-                <!-- Password -->
+                <!-- Password (plain text) -->
                 <div class="field">
                     <div class="field-label">
                         <div class="field-title">Password / API Key</div>
                         <div class="field-description">
-                            Your Odoo password or API key. This will be stored securely on the server.
-                        </div>
-                        <div class="field-hint" x-show="$store.odooStore.passwordExists">
-                            ✓ A password is currently configured. Leave this field empty to keep it,
-                            or enter a new password to replace it.
+                            Your Odoo password or API key. This will be stored and displayed in plain text.
                         </div>
                     </div>
                     <div class="field-control">
-                        <input type="password" placeholder="••••••••" x-model="$store.odooStore.password" />
+                        <input type="text" placeholder="your-odoo-password" x-model="$store.odooStore.password" />
                     </div>
                 </div>
 
-                <!-- Actions: Save + Test -->
+                <!-- Test Connection directly under password -->
+                <div class="field">
+                    <div class="field-label">
+                        <div class="field-title">Test Connection</div>
+                        <div class="field-description">
+                            Test the connection to Odoo using the current settings.
+                        </div>
+                    </div>
+                    <div class="field-control">
+                        <button class="btn" @click="$store.odooStore.testConnection()"
+                            :disabled="$store.odooStore.isTesting">
+                            <span class="icon material-symbols-outlined"
+                                x-show="!$store.odooStore.isTesting">play_circle</span>
+                            <span class="icon material-symbols-outlined spin"
+                                x-show="$store.odooStore.isTesting">progress_activity</span>
+                            <span
+                                x-text="$store.odooStore.isTesting ? 'Testing connection...' : 'Test Connection'"></span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Actions: Save -->
                 <div class="field field-full">
                     <div class="field-label">
                         <div class="field-title">Actions</div>
                         <div class="field-description">
-                            Save your settings first, then test the connection. The test will use the saved password
-                            from secure storage.
+                            Save your Odoo configuration settings.
                         </div>
                     </div>
                     <div class="field-control" style="gap: 0.75rem; display: flex; flex-wrap: wrap;">
@@ -111,16 +127,6 @@
                             <span class="icon material-symbols-outlined spin"
                                 x-show="$store.odooStore.isSaving">progress_activity</span>
                             <span x-text="$store.odooStore.isSaving ? 'Saving...' : 'Save Settings'"></span>
-                        </button>
-
-                        <button class="btn" @click="$store.odooStore.testConnection()"
-                            :disabled="$store.odooStore.isTesting">
-                            <span class="icon material-symbols-outlined"
-                                x-show="!$store.odooStore.isTesting">play_circle</span>
-                            <span class="icon material-symbols-outlined spin"
-                                x-show="$store.odooStore.isTesting">progress_activity</span>
-                            <span
-                                x-text="$store.odooStore.isTesting ? 'Testing connection...' : 'Test Connection'"></span>
                         </button>
                     </div>
                 </div>
