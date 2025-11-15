@@ -1,0 +1,169 @@
+<html>
+
+<head>
+    <title>Odoo Integration Settings</title>
+
+    <!-- Import the alpine store -->
+    <script type="module">
+        import { store } from "/components/settings/odoo/odoo-store.js";
+    </script>
+</head>
+
+<body>
+
+    <!-- Render only when the store is available -->
+    <div x-data>
+        <template x-if="$store.odooStore">
+            <div id="odoo-settings-section" class="section">
+                <div class="section-title">
+                    <span class="icon material-symbols-outlined">business</span>
+                    Odoo Integration
+                </div>
+                <div class="section-description">
+                    Configure and validate the connection to your Odoo ERP instance.
+                </div>
+
+                <!-- Enabled -->
+                <div class="field">
+                    <div class="field-label">
+                        <div class="field-title">Enable Odoo Integration</div>
+                        <div class="field-description">
+                            Toggle to allow tools such as <code>odoo_call</code> to connect to Odoo.
+                        </div>
+                    </div>
+                    <div class="field-control">
+                        <label class="toggle">
+                            <input type="checkbox" x-model="$store.odooStore.enabled">
+                            <span class="toggler"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- URL -->
+                <div class="field">
+                    <div class="field-label">
+                        <div class="field-title">Odoo URL</div>
+                        <div class="field-description">
+                            Base URL of your Odoo instance, e.g. <code>http://your-odoo:8069</code>.
+                        </div>
+                    </div>
+                    <div class="field-control">
+                        <input type="text"
+                               placeholder="http://your-odoo:8069"
+                               x-model="$store.odooStore.url" />
+                    </div>
+                </div>
+
+                <!-- DB -->
+                <div class="field">
+                    <div class="field-label">
+                        <div class="field-title">Database Name</div>
+                        <div class="field-description">
+                            Name of the Odoo database to connect to.
+                        </div>
+                    </div>
+                    <div class="field-control">
+                        <input type="text"
+                               placeholder="your_database"
+                               x-model="$store.odooStore.db" />
+                    </div>
+                </div>
+
+                <!-- User -->
+                <div class="field">
+                    <div class="field-label">
+                        <div class="field-title">Username</div>
+                        <div class="field-description">
+                            Odoo username or email for authentication.
+                        </div>
+                    </div>
+                    <div class="field-control">
+                        <input type="text"
+                               placeholder="admin@example.com"
+                               x-model="$store.odooStore.user" />
+                    </div>
+                </div>
+
+                <!-- Password -->
+                <div class="field">
+                    <div class="field-label">
+                        <div class="field-title">Password / API Key</div>
+                        <div class="field-description">
+                            Your Odoo password or API key. This will be stored securely on the server.
+                        </div>
+                    </div>
+                    <div class="field-control">
+                        <input type="password"
+                               placeholder="••••••••"
+                               x-model="$store.odooStore.password" />
+                    </div>
+                </div>
+
+                <!-- Actions: Save + Test -->
+                <div class="field field-full">
+                    <div class="field-label">
+                        <div class="field-title">Actions</div>
+                        <div class="field-description">
+                            Save your settings, then optionally test the Odoo connection.
+                        </div>
+                    </div>
+                    <div class="field-control" style="gap: 0.75rem; display: flex; flex-wrap: wrap;">
+                        <button class="btn btn-ok"
+                                @click="$store.odooStore.saveSettings()"
+                                :disabled="$store.odooStore.isSaving">
+                            <span class="icon material-symbols-outlined"
+                                  x-show="!$store.odooStore.isSaving">save</span>
+                            <span class="icon material-symbols-outlined spin"
+                                  x-show="$store.odooStore.isSaving">progress_activity</span>
+                            <span x-text="$store.odooStore.isSaving ? 'Saving...' : 'Save Settings'"></span>
+                        </button>
+
+                        <button class="btn"
+                                @click="$store.odooStore.testConnection()"
+                                :disabled="$store.odooStore.isTesting">
+                            <span class="icon material-symbols-outlined"
+                                  x-show="!$store.odooStore.isTesting">play_circle</span>
+                            <span class="icon material-symbols-outlined spin"
+                                  x-show="$store.odooStore.isTesting">progress_activity</span>
+                            <span x-text="$store.odooStore.isTesting ? 'Testing connection...' : 'Test Connection'"></span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Status -->
+                <div class="field field-full" x-show="$store.odooStore.statusMessage">
+                    <div class="field-label">
+                        <div class="field-title">Status</div>
+                    </div>
+                    <div class="field-control">
+                        <div :class="{
+                                'status-success': $store.odooStore.statusType === 'success',
+                                'status-error': $store.odooStore.statusType === 'error',
+                                'status-info': $store.odooStore.statusType === 'info',
+                            }">
+                            <span x-text="$store.odooStore.statusMessage"></span>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </template>
+    </div>
+
+    <style>
+        .status-success {
+            color: #28a745;
+        }
+
+        .status-error {
+            color: #dc3545;
+        }
+
+        .status-info {
+            color: #ffc107;
+        }
+    </style>
+
+</body>
+
+</html>

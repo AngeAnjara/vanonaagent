@@ -241,6 +241,13 @@ class AgentConfig:
     code_exec_ssh_pass: str = ""
     additional: Dict[str, Any] = field(default_factory=dict)
 
+    # Odoo integration config
+    odoo_enabled: bool = False
+    odoo_url: str = ""
+    odoo_db: str = ""
+    odoo_user: str = ""
+    odoo_password: str = ""
+
 
 @dataclass
 class UserMessage:

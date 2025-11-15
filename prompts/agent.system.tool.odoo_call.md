@@ -1,4 +1,6 @@
 ### odoo_call:
+
+**Prerequisites**: This tool requires Odoo integration to be enabled and configured in Settings. If you receive an error about Odoo not being enabled, inform the user to configure their Odoo connection in **Settings > Odoo Integration**.
 Connecte l'agent à une instance Odoo via l'API XML-RPC pour interroger les données métier (ventes, clients, produits, etc.).
 Peut appeler des méthodes Odoo comme 'search', 'search_read', 'read', 'read_group', 'create', 'write'.
 

@@ -80,6 +80,11 @@ def initialize_agent():
         knowledge_subdirs=[current_settings["agent_knowledge_subdir"], "default"],
         mcp_servers=current_settings["mcp_servers"],
         browser_http_headers=current_settings["browser_http_headers"],
+        odoo_enabled=current_settings["odoo_enabled"],
+        odoo_url=current_settings["odoo_url"],
+        odoo_db=current_settings["odoo_db"],
+        odoo_user=current_settings["odoo_user"],
+        odoo_password=current_settings["odoo_password"],
         # code_exec params get initialized in _set_runtime_config
         # additional = {},
     )

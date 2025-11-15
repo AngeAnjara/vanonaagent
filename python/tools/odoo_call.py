@@ -12,12 +12,19 @@ class OdooCall(Tool):
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self.odoo_url: str | None = "http://188.166.107.40:9090"
-        self.odoo_db: str | None = "production"
-        self.odoo_user: str | None = "admin"
-        self.odoo_password: str | None = "admin"
+        # Load Odoo configuration from agent config (initialized via settings)
+        self.odoo_url: str | None = getattr(self.agent.config, "odoo_url", "")
+        self.odoo_db: str | None = getattr(self.agent.config, "odoo_db", "")
+        self.odoo_user: str | None = getattr(self.agent.config, "odoo_user", "")
+        self.odoo_password: str | None = getattr(self.agent.config, "odoo_password", "")
 
     async def execute(self, **kwargs) -> Response:
+        # Ensure Odoo integration is enabled in settings
+        if not getattr(self.agent.config, "odoo_enabled", False):
+            raise RepairableException(
+                "Odoo integration is not enabled. Please enable and configure Odoo in Settings > Odoo Integration."
+            )
+
         # Prefer kwargs (if provided) to align with potential external callers, fallback to self.args
         model: str | None = kwargs.get("model", self.args.get("model"))
         method: str | None = kwargs.get("method", self.args.get("method"))
@@ -39,7 +46,7 @@ class OdooCall(Tool):
         ]
         if missing:
             raise RepairableException(
-                f"Missing Odoo configuration values in .env: {', '.join(missing)}"
+                "Missing Odoo configuration values. Please configure Odoo in Settings > Odoo Integration."
             )
         if not model or not method:
             raise RepairableException("'model' and 'method' are required arguments for odoo_call")

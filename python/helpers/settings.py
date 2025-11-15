@@ -111,6 +111,13 @@ class Settings(TypedDict):
     # LiteLLM global kwargs applied to all model calls
     litellm_global_kwargs: dict[str, Any]
 
+    # Odoo integration
+    odoo_enabled: bool
+    odoo_url: str
+    odoo_db: str
+    odoo_user: str
+    odoo_password: str
+
 class PartialSettings(Settings, total=False):
     pass
 
@@ -573,6 +580,69 @@ def convert_out(settings: Settings) -> SettingsOutput:
         "description": "Settings for authentication to use Agent Zero Web UI.",
         "fields": auth_fields,
         "tab": "external",
+    }
+
+    # Odoo integration section
+    # Note: Odoo settings use the auto-generated UI fields defined here.
+    # A custom HTML section (odoo-section.html) is intentionally not wired in to keep the configuration simple.
+    odoo_fields: list[SettingsField] = []
+
+    odoo_fields.append(
+        {
+            "id": "odoo_enabled",
+            "title": "Enable Odoo Integration",
+            "description": "Activate Odoo tool to query your ERP data.",
+            "type": "switch",
+            "value": settings["odoo_enabled"],
+        }
+    )
+
+    odoo_fields.append(
+        {
+            "id": "odoo_url",
+            "title": "Odoo URL",
+            "description": "Full URL of your Odoo instance (e.g., http://188.166.107.40:9090)",
+            "type": "text",
+            "value": settings["odoo_url"],
+        }
+    )
+
+    odoo_fields.append(
+        {
+            "id": "odoo_db",
+            "title": "Database Name",
+            "description": "Name of the Odoo database to connect to.",
+            "type": "text",
+            "value": settings["odoo_db"],
+        }
+    )
+
+    odoo_fields.append(
+        {
+            "id": "odoo_user",
+            "title": "Username",
+            "description": "Odoo username or email.",
+            "type": "text",
+            "value": settings["odoo_user"],
+        }
+    )
+
+    odoo_fields.append(
+        {
+            "id": "odoo_password",
+            "title": "Password",
+            "description": "Odoo password or API key.",
+            "type": "password",
+            "value": PASSWORD_PLACEHOLDER if settings["odoo_password"] else "",
+        }
+    )
+
+    odoo_section: SettingsSection = {
+        "id": "odoo",
+        "title": "Odoo Integration",
+        "description": "Configure connection to your Odoo ERP instance for business data queries.",
+        "fields": odoo_fields,
+        "tab": "agent",
     }
 
     # api keys model section
@@ -1261,6 +1331,7 @@ def convert_out(settings: Settings) -> SettingsOutput:
             embed_model_section,
             memory_section,
             speech_section,
+            odoo_section,
             api_keys_section,
             litellm_section,
             secrets_section,
@@ -1363,6 +1434,12 @@ def normalize_settings(settings: Settings) -> Settings:
     # mcp server token is set automatically
     copy["mcp_server_token"] = create_auth_token()
 
+    # load sensitive Odoo password from dotenv, never from JSON file
+    try:
+        copy["odoo_password"] = dotenv.get_dotenv_value("ODOO_PASSWORD") or ""
+    except Exception:
+        copy["odoo_password"] = ""
+
     return copy
 
 
@@ -1399,6 +1476,7 @@ def _remove_sensitive_settings(settings: Settings):
     settings["root_password"] = ""
     settings["mcp_server_token"] = ""
     settings["secrets"] = ""
+    settings["odoo_password"] = ""
 
 
 def _write_sensitive_settings(settings: Settings):
@@ -1415,6 +1493,10 @@ def _write_sensitive_settings(settings: Settings):
         dotenv.save_dotenv_value(dotenv.KEY_ROOT_PASSWORD, settings["root_password"])
     if settings["root_password"]:
         set_root_password(settings["root_password"])
+
+    # Odoo password stored in dotenv only
+    if settings.get("odoo_password"):
+        dotenv.save_dotenv_value("ODOO_PASSWORD", settings["odoo_password"])
 
     # Handle secrets separately - merge with existing preserving comments/order and support deletions
     secrets_manager = SecretsManager.get_instance()
@@ -1503,6 +1585,11 @@ def get_default_settings() -> Settings:
         variables="",
         secrets="",
         litellm_global_kwargs={},
+        odoo_enabled=False,
+        odoo_url="",
+        odoo_db="",
+        odoo_user="",
+        odoo_password="",
     )
 
 
@@ -1691,14 +1778,12 @@ def get_runtime_config(set: Settings):
             "code_exec_ssh_enabled": set["shell_interface"] == "ssh",
             "code_exec_ssh_addr": host,
             "code_exec_ssh_port": set["rfc_port_ssh"],
-            "code_exec_ssh_user": "root",
-        }
-
-
+            "code_exec_ssh_user": "root",}
 def create_auth_token() -> str:
     runtime_id = runtime.get_persistent_id()
     username = dotenv.get_dotenv_value(dotenv.KEY_AUTH_LOGIN) or ""
     password = dotenv.get_dotenv_value(dotenv.KEY_AUTH_PASSWORD) or ""
+
     # use base64 encoding for a more compact token with alphanumeric chars
     hash_bytes = hashlib.sha256(f"{runtime_id}:{username}:{password}".encode()).digest()
     # encode as base64 and remove any non-alphanumeric chars (like +, /, =)
