@@ -48,7 +48,12 @@ const model = {
       this.user = getField("odoo_user").value || "";
 
       const pwdField = getField("odoo_password");
-      this.passwordExists = !!pwdField.value;
+      const existsField = getField("odoo_password_exists");
+      if (existsField && typeof existsField.value !== "undefined") {
+        this.passwordExists = !!existsField.value;
+      } else {
+        this.passwordExists = !!pwdField.value;
+      }
       this.password = "";
       this.passwordClear = false;
     } catch (err) {

@@ -639,6 +639,17 @@ def convert_out(settings: Settings) -> SettingsOutput:
 
     odoo_fields.append(
         {
+            "id": "odoo_password_exists",
+            "title": "Odoo password exists",
+            "description": "Internal flag indicating whether an Odoo password is configured.",
+            "type": "hidden",
+            "value": bool(settings.get("odoo_password", "").strip()),
+            "hidden": True,
+        }
+    )
+
+    odoo_fields.append(
+        {
             "id": "odoo_password_clear",
             "title": "Clear Odoo password",
             "description": "Internal flag used to clear stored Odoo password.",
