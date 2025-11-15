@@ -35,8 +35,8 @@ class OdooTestConnection(ApiHandler):
                 return {
                     "success": False,
                     "message": (
-                        "Missing Odoo configuration values. "
-                        "Please configure Odoo in Settings > Odoo Integration."
+                        f"Missing Odoo configuration: {', '.join(missing)}. "
+                        "Please configure these in Settings > Odoo Integration."
                     ),
                 }
 
@@ -48,7 +48,10 @@ class OdooTestConnection(ApiHandler):
             if not uid:
                 return {
                     "success": False,
-                    "message": "Authentication to Odoo failed. Check username/password and database.",
+                    "message": (
+                        "Authentication to Odoo failed. "
+                        "Please verify your username, password, and database name in Settings > Odoo Integration."
+                    ),
                 }
 
             return {"success": True, "message": "Odoo connection and authentication successful."}
@@ -60,7 +63,13 @@ class OdooTestConnection(ApiHandler):
             except Exception:  # noqa: BLE001
                 PrintStyle.error(f"{type(e).__name__}: {e}")
 
+            base_message = f"Error testing Odoo connection: {type(e).__name__}: {e}"
+            hint = ""
+            text = str(e).lower()
+            if "connection refused" in text or "timed out" in text or "timeout" in text:
+                hint = " Please check that your Odoo URL is correct and the server is reachable from Agent Zero."
+
             return {
                 "success": False,
-                "message": f"Error testing Odoo connection: {type(e).__name__}: {e}",
+                "message": base_message + hint,
             }

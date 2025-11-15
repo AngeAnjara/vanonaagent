@@ -637,6 +637,17 @@ def convert_out(settings: Settings) -> SettingsOutput:
         }
     )
 
+    odoo_fields.append(
+        {
+            "id": "odoo_password_clear",
+            "title": "Clear Odoo password",
+            "description": "Internal flag used to clear stored Odoo password.",
+            "type": "switch",
+            "value": False,
+            "hidden": True,
+        }
+    )
+
     odoo_section: SettingsSection = {
         "id": "odoo",
         "title": "Odoo Integration",
@@ -1367,7 +1378,8 @@ def convert_in(settings: dict) -> Settings:
                 # Skip saving if value is a placeholder
                 should_skip = (
                     field["value"] == PASSWORD_PLACEHOLDER or
-                    field["value"] == API_KEY_PLACEHOLDER
+                    field["value"] == API_KEY_PLACEHOLDER or
+                    (field["id"] == "odoo_password" and not field["value"])
                 )
 
                 if not should_skip:
@@ -1495,8 +1507,14 @@ def _write_sensitive_settings(settings: Settings):
         set_root_password(settings["root_password"])
 
     # Odoo password stored in dotenv only
-    if settings.get("odoo_password"):
-        dotenv.save_dotenv_value("ODOO_PASSWORD", settings["odoo_password"])
+    if settings.get("odoo_password_clear"):
+        settings["odoo_password_clear"] = False
+
+    odoo_password = settings.get("odoo_password", "") or ""
+    if odoo_password == "":
+        dotenv.remove_dotenv_value("ODOO_PASSWORD")
+    else:
+        dotenv.save_dotenv_value("ODOO_PASSWORD", odoo_password)
 
     # Handle secrets separately - merge with existing preserving comments/order and support deletions
     secrets_manager = SecretsManager.get_instance()
@@ -1590,6 +1608,7 @@ def get_default_settings() -> Settings:
         odoo_db="",
         odoo_user="",
         odoo_password="",
+        odoo_password_clear=False,
     )
 
 

@@ -41,3 +41,16 @@ def save_dotenv_value(key: str, value: str):
         f.writelines(lines)
         f.truncate()
     load_dotenv()
+
+
+def remove_dotenv_value(key: str):
+    dotenv_path = get_dotenv_file_path()
+    if not os.path.isfile(dotenv_path):
+        return
+    with open(dotenv_path, "r+") as f:
+        lines = f.readlines()
+        lines = [line for line in lines if not re.match(rf"^\s*{key}\s*=", line)]
+        f.seek(0)
+        f.writelines(lines)
+        f.truncate()
+    load_dotenv()

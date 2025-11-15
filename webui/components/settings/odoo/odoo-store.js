@@ -1,11 +1,15 @@
 import { createStore } from "/js/AlpineStore.js";
 
+const PASSWORD_PLACEHOLDER = "****PSWD****";
+
 const model = {
   enabled: false,
   url: "",
   db: "",
   user: "",
   password: "",
+  passwordExists: false,
+  passwordClear: false,
   isSaving: false,
   isTesting: false,
   statusMessage: "",
@@ -43,11 +47,10 @@ const model = {
       this.db = getField("odoo_db").value || "";
       this.user = getField("odoo_user").value || "";
 
-      // We never show the real password; just know if something is stored
       const pwdField = getField("odoo_password");
-      if (pwdField.value) {
-        this.password = "";
-      }
+      this.passwordExists = !!pwdField.value;
+      this.password = "";
+      this.passwordClear = false;
     } catch (err) {
       console.error("Error loading Odoo settings", err);
       this.statusMessage = "Error loading Odoo settings.";
@@ -90,9 +93,16 @@ const model = {
       setField("odoo_db", this.db);
       setField("odoo_user", this.user);
 
-      // Only send password if explicit value provided; otherwise keep existing
-      if (this.password && this.password.trim().length > 0) {
-        setField("odoo_password", this.password);
+      const trimmedPassword = (this.password || "").trim();
+      if (this.passwordClear) {
+        setField("odoo_password_clear", true);
+      } else {
+        setField("odoo_password_clear", false);
+        if (trimmedPassword.length > 0) {
+          setField("odoo_password", trimmedPassword);
+        } else if (this.passwordExists === true) {
+          setField("odoo_password", PASSWORD_PLACEHOLDER);
+        }
       }
 
       const saveResp = await fetchApi("/settings_set", {
@@ -107,6 +117,7 @@ const model = {
         this.statusType = "success";
         await this.loadFromSettings();
         this.password = "";
+        this.passwordClear = false;
         window.toastFrontendInfo("Odoo settings saved.", "Odoo Settings");
       } else {
         this.statusMessage = "Failed to save Odoo settings.";

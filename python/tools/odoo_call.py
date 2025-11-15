@@ -12,11 +12,6 @@ class OdooCall(Tool):
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        # Load Odoo configuration from agent config (initialized via settings)
-        self.odoo_url: str | None = getattr(self.agent.config, "odoo_url", "")
-        self.odoo_db: str | None = getattr(self.agent.config, "odoo_db", "")
-        self.odoo_user: str | None = getattr(self.agent.config, "odoo_user", "")
-        self.odoo_password: str | None = getattr(self.agent.config, "odoo_password", "")
 
     async def execute(self, **kwargs) -> Response:
         # Ensure Odoo integration is enabled in settings
@@ -24,6 +19,11 @@ class OdooCall(Tool):
             raise RepairableException(
                 "Odoo integration is not enabled. Please enable and configure Odoo in Settings > Odoo Integration."
             )
+
+        odoo_url: str = getattr(self.agent.config, "odoo_url", "") or ""
+        odoo_db: str = getattr(self.agent.config, "odoo_db", "") or ""
+        odoo_user: str = getattr(self.agent.config, "odoo_user", "") or ""
+        odoo_password: str = getattr(self.agent.config, "odoo_password", "") or ""
 
         # Prefer kwargs (if provided) to align with potential external callers, fallback to self.args
         model: str | None = kwargs.get("model", self.args.get("model"))
@@ -37,12 +37,14 @@ class OdooCall(Tool):
 
         # Validate configuration
         missing = [
-            k for k, v in {
-                "ODOO_URL": self.odoo_url,
-                "ODOO_DB": self.odoo_db,
-                "ODOO_USER": self.odoo_user,
-                "ODOO_PASSWORD": self.odoo_password,
-            }.items() if not v
+            k
+            for k, v in {
+                "ODOO_URL": odoo_url,
+                "ODOO_DB": odoo_db,
+                "ODOO_USER": odoo_user,
+                "ODOO_PASSWORD": odoo_password,
+            }.items()
+            if not v
         ]
         if missing:
             raise RepairableException(
@@ -52,14 +54,14 @@ class OdooCall(Tool):
             raise RepairableException("'model' and 'method' are required arguments for odoo_call")
 
         # Build endpoints
-        common_url = f"{self.odoo_url.rstrip('/')}/xmlrpc/2/common"
-        object_url = f"{self.odoo_url.rstrip('/')}/xmlrpc/2/object"
+        common_url = f"{odoo_url.rstrip('/')}/xmlrpc/2/common"
+        object_url = f"{odoo_url.rstrip('/')}/xmlrpc/2/object"
 
         # Prepare execution in thread to avoid blocking
         def _run() -> Any:
             try:
                 common = xmlrpclib.ServerProxy(common_url)
-                uid = common.authenticate(self.odoo_db, self.odoo_user, self.odoo_password, {})
+                uid = common.authenticate(odoo_db, odoo_user, odoo_password, {})
                 if not uid:
                     raise RepairableException("Authentication to Odoo failed. Check ODOO_USER/ODOO_PASSWORD.")
 
@@ -90,9 +92,9 @@ class OdooCall(Tool):
                     kwargs_call.update(options)
 
                 result = models.execute_kw(
-                    self.odoo_db,
+                    odoo_db,
                     uid,
-                    self.odoo_password,
+                    odoo_password,
                     model,
                     method,
                     args_list,
@@ -136,7 +138,9 @@ class OdooCall(Tool):
 
     async def before_execution(self, **kwargs):
         await super().before_execution(**kwargs)
-        PrintStyle(font_color="#85C1E9").print(f"Connecting to Odoo at {self.odoo_url} (db={self.odoo_db})")
+        url = getattr(self.agent.config, "odoo_url", "") or ""
+        db = getattr(self.agent.config, "odoo_db", "") or ""
+        PrintStyle(font_color="#85C1E9").print(f"Connecting to Odoo at {url} (db={db})")
 
     async def after_execution(self, response: Response, **kwargs):
         await super().after_execution(response, **kwargs)
