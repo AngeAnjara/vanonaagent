@@ -85,8 +85,6 @@ def initialize_agent():
         odoo_db=current_settings["odoo_db"],
         odoo_user=current_settings["odoo_user"],
         odoo_password=current_settings["odoo_password"],
-        odoo_password_exists=current_settings["odoo_password_exists"],
-        odoo_password_clear=current_settings["odoo_password_clear"],
         # code_exec params get initialized in _set_runtime_config
         # additional = {},
     )
