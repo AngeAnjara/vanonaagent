@@ -117,6 +117,8 @@ class Settings(TypedDict):
     odoo_db: str
     odoo_user: str
     odoo_password: str
+    odoo_password_exists: bool
+    odoo_password_clear: bool
 
 class PartialSettings(Settings, total=False):
     pass
@@ -1500,6 +1502,7 @@ def _remove_sensitive_settings(settings: Settings):
     settings["mcp_server_token"] = ""
     settings["secrets"] = ""
     settings["odoo_password"] = ""
+    settings["odoo_password_clear"] = False
 
 
 def _write_sensitive_settings(settings: Settings):
@@ -1619,6 +1622,7 @@ def get_default_settings() -> Settings:
         odoo_db="",
         odoo_user="",
         odoo_password="",
+        odoo_password_exists=False,
         odoo_password_clear=False,
     )
 

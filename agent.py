@@ -247,6 +247,8 @@ class AgentConfig:
     odoo_db: str = ""
     odoo_user: str = ""
     odoo_password: str = ""
+    odoo_password_exists: bool = False
+    odoo_password_clear: bool = False
 
 
 @dataclass
