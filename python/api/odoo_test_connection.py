@@ -41,6 +41,7 @@ class OdooTestConnection(ApiHandler):
                 }
 
             common_url = f"{url.rstrip('/')}/xmlrpc/2/common"
+            object_url = f"{url.rstrip('/')}/xmlrpc/2/object"
 
             common = xmlrpclib.ServerProxy(common_url)
             uid = common.authenticate(db, user, password, {})
@@ -54,7 +55,74 @@ class OdooTestConnection(ApiHandler):
                     ),
                 }
 
-            return {"success": True, "message": "Odoo connection and authentication successful."}
+            version_info = {}
+            try:
+                version_info = common.version() or {}
+            except Exception:  # noqa: BLE001
+                version_info = {}
+
+            odoo_version = version_info.get("server_version", "") or ""
+
+            available_models = []
+            enrichment_hint = ""
+            try:
+                models_proxy = xmlrpclib.ServerProxy(object_url)
+                domain = [["transient", "=", False]]
+                fields = ["model", "name"]
+                result = models_proxy.execute_kw(
+                    db,
+                    uid,
+                    password,
+                    "ir.model",
+                    "search_read",
+                    [domain],
+                    {"fields": fields, "limit": 500, "order": "name asc"},
+                )
+
+                result_by_model = {rec.get("model"): rec for rec in result}
+                common_business_models = [
+                    "sale.order",
+                    "sale.order.line",
+                    "purchase.order",
+                    "account.move",
+                    "account.move.line",
+                    "account.payment",
+                    "res.partner",
+                    "product.product",
+                    "product.template",
+                    "stock.picking",
+                    "stock.move",
+                    "crm.lead",
+                    "project.project",
+                    "project.task",
+                    "hr.employee",
+                    "hr.leave",
+                ]
+
+                for model_name in common_business_models:
+                    rec = result_by_model.get(model_name)
+                    available_models.append(
+                        {
+                            "model": model_name,
+                            "name": (rec or {}).get("name", model_name),
+                            "available": rec is not None,
+                        }
+                    )
+
+            except Exception as enrich_err:  # noqa: BLE001
+                try:
+                    tb = format_error(enrich_err)
+                    PrintStyle.error(tb)
+                except Exception:  # noqa: BLE001
+                    PrintStyle.error(f"{type(enrich_err).__name__}: {enrich_err}")
+                enrichment_hint = " However, Agent Zero could not retrieve the list of business models (missing access rights to ir.model or another server-side issue)."
+
+            return {
+                "success": True,
+                "message": "Odoo connection and authentication successful." + enrichment_hint,
+                "available_models": available_models,
+                "odoo_version": odoo_version,
+            }
 
         except Exception as e:  # noqa: BLE001
             try:

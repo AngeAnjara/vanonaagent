@@ -23,6 +23,58 @@ Notes:
 - Exemples de groupby temporels: `"date_order:day"`, `"date_order:month"`, `"date_order:year"`.
 - Exemples d'agrégations: `"amount_total:sum"`, `"amount_total:avg"`, `"id:count"`.
 
+### Découverte des modèles disponibles
+
+- Les modèles disponibles dans Odoo dépendent des modules installés et de la version.
+- Avant d'utiliser un modèle métier spécifique, il est recommandé de vérifier qu'il existe dans votre instance.
+- Pour lister les modèles disponibles, utilisez le modèle système `ir.model` avec `search_read`.
+
+Exemple pour découvrir les modèles métier disponibles:
+
+~~~json
+{
+  "thoughts": ["Je dois d'abord découvrir quels modèles sont disponibles"],
+  "headline": "Liste des modèles Odoo disponibles",
+  "tool_name": "odoo_call",
+  "tool_args": {
+    "model": "ir.model",
+    "method": "search_read",
+    "domain": [["transient", "=", false]],
+    "fields": ["model", "name"],
+    "options": {"limit": 200, "order": "name asc"}
+  }
+}
+~~~
+
+Vous pouvez également demander à l'outil de retourner une liste de modèles métier filtrés et mise en cache en utilisant le drapeau `discover_models` :
+
+~~~json
+{
+  "thoughts": ["Je veux une liste rapide des modèles métier courants"],
+  "headline": "Découverte automatique des modèles métier",
+  "tool_name": "odoo_call",
+  "tool_args": {
+    "model": "ir.model",
+    "method": "search_read",
+    "discover_models": true
+  }
+}
+~~~
+
+### Modèles standards courants
+
+- **Ventes**: `sale.order` (Commandes), `sale.order.line` (Lignes de commande)
+- **Achats**: `purchase.order` (Bons de commande)
+- **Comptabilité**: `account.move` (Factures/Écritures), `account.move.line` (Lignes comptables), `account.payment` (Paiements)
+- **Contacts**: `res.partner` (Contacts/Clients/Fournisseurs)
+- **Produits**: `product.product` (Produits), `product.template` (Modèles de produits)
+- **Stock**: `stock.picking` (Transferts), `stock.move` (Mouvements de stock)
+- **CRM**: `crm.lead` (Opportunités/Leads)
+- **Projets**: `project.project` (Projets), `project.task` (Tâches)
+- **RH**: `hr.employee` (Employés), `hr.leave` (Congés)
+
+⚠️ Si vous recevez une erreur indiquant qu'un modèle « n'existe pas » (par exemple `account.financial.report`), vérifiez d'abord que le module correspondant est installé dans Odoo, ou utilisez `ir.model` comme ci-dessus pour découvrir les modèles disponibles.
+
 **Example usage**:
 ~~~json
 {

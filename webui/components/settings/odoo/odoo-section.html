@@ -147,6 +147,34 @@
                     </div>
                 </div>
 
+                <!-- Available business models -->
+                <div class="field field-full" x-show="$store.odooStore.availableModels && $store.odooStore.availableModels.length">
+                    <div class="field-label">
+                        <div class="field-title">Modèles métier disponibles dans votre instance</div>
+                        <div class="field-description">
+                            Ces modèles sont détectés via <code>ir.model</code> après un test de connexion réussi.
+                        </div>
+                    </div>
+                    <div class="field-control">
+                        <div class="odoo-models-grid">
+                            <template x-for="m in $store.odooStore.availableModels" :key="m.model">
+                                <div class="odoo-model-badge">
+                                    <div class="odoo-model-main">
+                                        <span class="odoo-model-indicator" :class="{'available': m.available}"></span>
+                                        <div class="odoo-model-texts">
+                                            <div class="odoo-model-code" x-text="m.model"></div>
+                                            <div class="odoo-model-name" x-text="m.name"></div>
+                                        </div>
+                                    </div>
+                                    <button type="button" class="odoo-model-copy" @click="$store.odooStore.copyModelName(m.model)">
+                                        <span class="material-symbols-outlined">content_copy</span>
+                                    </button>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+
             </div>
         </template>
     </div>
@@ -176,6 +204,81 @@
             color: #856404;
             border-color: #ffc107;
             background-color: rgba(255, 193, 7, 0.1);
+        }
+
+        .odoo-models-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-top: 0.25rem;
+        }
+
+        .odoo-model-badge {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.5rem;
+            padding: 0.5rem 0.75rem;
+            border-radius: 999px;
+            background-color: rgba(0, 0, 0, 0.03);
+            border: 1px solid rgba(0, 0, 0, 0.06);
+            max-width: 100%;
+        }
+
+        .odoo-model-main {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            min-width: 0;
+        }
+
+        .odoo-model-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 999px;
+            background-color: #ccc;
+        }
+
+        .odoo-model-indicator.available {
+            background-color: #28a745;
+        }
+
+        .odoo-model-texts {
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+        }
+
+        .odoo-model-code {
+            font-family: monospace;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #333;
+            white-space: nowrap;
+        }
+
+        .odoo-model-name {
+            font-size: 0.75rem;
+            color: #555;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+            overflow: hidden;
+        }
+
+        .odoo-model-copy {
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.25rem;
+            border-radius: 999px;
+            color: #555;
+        }
+
+        .odoo-model-copy:hover {
+            background-color: rgba(0, 0, 0, 0.05);
         }
     </style>
 

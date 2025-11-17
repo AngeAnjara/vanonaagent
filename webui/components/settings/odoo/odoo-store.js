@@ -10,9 +10,26 @@ const model = {
   isTesting: false,
   statusMessage: "",
   statusType: "info",
+  availableModels: [],
 
   async init() {
     await this.loadFromSettings();
+  },
+
+  async copyModelName(modelName) {
+    try {
+      if (navigator && navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(modelName);
+        if (window && window.toastFrontendInfo) {
+          window.toastFrontendInfo(`Model '${modelName}' copied to clipboard.`, "Odoo Model");
+        }
+      }
+    } catch (err) {
+      console.error("Failed to copy model name", err);
+      if (window && window.toastFrontendError) {
+        window.toastFrontendError("Failed to copy model name.", "Odoo Model");
+      }
+    }
   },
 
   async loadFromSettings() {
@@ -114,10 +131,15 @@ const model = {
     }
   },
 
+  clearAvailableModels() {
+    this.availableModels = [];
+  },
+
   async testConnection() {
     this.isTesting = true;
     this.statusMessage = "";
     this.statusType = "info";
+    this.clearAvailableModels();
 
     try {
       const resp = await fetchApi("/odoo_test_connection", {
@@ -135,6 +157,13 @@ const model = {
       if (data.success) {
         this.statusMessage = data.message || "Connection successful.";
         this.statusType = "success";
+
+        if (Array.isArray(data.available_models)) {
+          this.availableModels = data.available_models;
+        } else {
+          this.availableModels = [];
+        }
+
         window.toastFrontendInfo(this.statusMessage, "Odoo Connection");
       } else {
         this.statusMessage = data.message || "Connection failed.";

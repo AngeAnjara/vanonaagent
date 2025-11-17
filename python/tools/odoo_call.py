@@ -10,6 +10,8 @@ from python.helpers.print_style import PrintStyle
 
 class OdooCall(Tool):
 
+    _models_cache: dict[str, list[dict[str, Any]]] = {}
+
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
@@ -34,6 +36,7 @@ class OdooCall(Tool):
         ids = kwargs.get("ids", self.args.get("ids"))
         vals = kwargs.get("vals", self.args.get("vals"))
         raw_args = kwargs.get("raw_args", self.args.get("raw_args", []))
+        discover_models: bool = kwargs.get("discover_models", self.args.get("discover_models", False))
 
         # Validate configuration
         missing = [
@@ -50,7 +53,7 @@ class OdooCall(Tool):
             raise RepairableException(
                 "Missing Odoo configuration values. Please configure Odoo in Settings > Odoo Integration."
             )
-        if not model or not method:
+        if not discover_models and (not model or not method):
             raise RepairableException("'model' and 'method' are required arguments for odoo_call")
 
         # Build endpoints
@@ -66,6 +69,9 @@ class OdooCall(Tool):
                     raise RepairableException("Authentication to Odoo failed. Check ODOO_USER/ODOO_PASSWORD.")
 
                 models = xmlrpclib.ServerProxy(object_url)
+
+                if discover_models:
+                    return self._discover_models(models, odoo_db, uid, odoo_password, odoo_url)
 
                 args_list = []
                 if method in ("search", "search_read"):
@@ -137,12 +143,56 @@ class OdooCall(Tool):
                     message += (
                         " | Hint: Check method-specific parameters. For 'read_group', use 'orderby' instead of 'order' and ensure 'groupby' is provided in options."
                     )
+                missing_model_markers = [
+                    "does not exist",
+                    "n'existe pas",
+                    "model not found",
+                    "unknown model",
+                    "no such model",
+                ]
+                structured_message: str | None = None
+                suggested_models: list[dict[str, Any]] = []
+                if any(marker in lower_msg for marker in missing_model_markers):
+                    standard_models = [
+                        "sale.order",
+                        "res.partner",
+                        "product.product",
+                        "account.move",
+                        "stock.picking",
+                        "crm.lead",
+                        "project.project",
+                        "hr.employee",
+                        "purchase.order",
+                    ]
+                    message += (
+                        f" | Le modèle '{model}' n'existe pas dans votre instance Odoo ou n'est pas accessible. "
+                        "Cela peut signifier que le module correspondant n'est pas installé ou que vous n'avez pas les droits suffisants. "
+                        "Modèles standards courants: "
+                        + ", ".join(standard_models)
+                        + ". Utilisez odoo_call avec model='ir.model' et method='search_read' pour lister les modèles disponibles (voir la documentation de l'outil)."
+                    )
+                    # Try to discover available business models to provide structured suggestions
+                    try:
+                        suggested_models = self._discover_models(models, odoo_db, uid, odoo_password, odoo_url)
+                    except Exception:
+                        suggested_models = []
+
+                    if suggested_models:
+                        error_payload = {
+                            "error": message,
+                            "model": model,
+                            "suggested_models": suggested_models,
+                        }
+                        try:
+                            structured_message = json.dumps(error_payload, ensure_ascii=False, default=str)
+                        except Exception:
+                            structured_message = None
                 try:
                     tb = format_error(fault)
                     PrintStyle.error(tb)
                 except Exception:
                     PrintStyle.error(message)
-                raise RepairableException(message)
+                raise RepairableException(structured_message or message)
             except Exception as e:
                 # Preserve context: log the full formatted traceback and include exception type in the message
                 try:
@@ -184,3 +234,42 @@ class OdooCall(Tool):
 
     async def after_execution(self, response: Response, **kwargs):
         await super().after_execution(response, **kwargs)
+
+    @staticmethod
+    def _discover_models(models_proxy: xmlrpclib.ServerProxy, db: str, uid: int, password: str, url: str) -> list[dict[str, Any]]:
+        cache_key = f"{url.rstrip('/')}_{db}"
+        cached = OdooCall._models_cache.get(cache_key)
+        if cached is not None:
+            return cached
+
+        domain = [["transient", "=", False]]
+        fields = ["model", "name"]
+        params = {
+            "domain": domain,
+            "fields": fields,
+            "limit": 200,
+            "order": "name asc",
+        }
+
+        result = models_proxy.execute_kw(
+            db,
+            uid,
+            password,
+            "ir.model",
+            "search_read",
+            [params["domain"]],
+            {"fields": params["fields"], "limit": params["limit"], "order": params["order"]},
+        )
+
+        business_prefixes = ("sale.", "purchase.", "account.", "crm.", "project.", "stock.", "product.", "res.", "hr.")
+        filtered: list[dict[str, Any]] = []
+        for rec in result:
+            model_name = rec.get("model", "") or ""
+            if model_name.startswith("ir.") or model_name.startswith("base."):
+                continue
+            if not model_name.startswith(business_prefixes):
+                continue
+            filtered.append({"model": model_name, "name": rec.get("name", model_name)})
+
+        OdooCall._models_cache[cache_key] = filtered
+        return filtered
