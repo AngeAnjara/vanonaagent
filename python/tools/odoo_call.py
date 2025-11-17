@@ -68,7 +68,7 @@ class OdooCall(Tool):
                 models = xmlrpclib.ServerProxy(object_url)
 
                 args_list = []
-                if method in ("search", "search_read", "read_group"):
+                if method in ("search", "search_read"):
                     args_list = [domain if isinstance(domain, list) else []]
                 elif method in ("read", "write", "unlink"):
                     # For read/write/unlink the first positional arg is ids
@@ -79,17 +79,44 @@ class OdooCall(Tool):
                     if vals is None:
                         raise RepairableException("'vals' argument is required for method 'create'")
                     args_list = [vals]
+                elif method == "read_group":
+                    if "order" in options and "orderby" not in options:
+                        options["orderby"] = options.pop("order")
+                    groupby = options.get("groupby")
+                    if not groupby:
+                        raise RepairableException("'groupby' is required in options for read_group")
+                    fields_list = fields or options.get("fields", [])
+                    if not isinstance(fields_list, list):
+                        fields_list = [fields_list]
+                    args_list = [domain if isinstance(domain, list) else [], fields_list, groupby]
+                    options.pop("fields", None)
+                    options.pop("groupby", None)
                 else:
                     # generic: allow passing raw 'args' list
                     if not isinstance(raw_args, list):
                         raise RepairableException("'raw_args' must be a list when using generic method")
                     args_list = raw_args
 
+                options_dict: dict[str, Any] = options if isinstance(options, dict) else {}
+
                 kwargs_call: dict[str, Any] = {}
                 if fields and method in ("search_read", "read"):
                     kwargs_call["fields"] = fields
-                if options and isinstance(options, dict):
-                    kwargs_call.update(options)
+
+                allowed_kwargs_by_method: dict[str, set[str]] = {
+                    "search_read": {"fields", "offset", "limit", "order"},
+                    "read_group": {"offset", "limit", "orderby", "lazy", "context"},
+                    "read": {"fields"},
+                    "search": {"offset", "limit", "order"},
+                }
+
+                if options_dict:
+                    if method in allowed_kwargs_by_method:
+                        for key in allowed_kwargs_by_method[method]:
+                            if key in options_dict:
+                                kwargs_call[key] = options_dict[key]
+                    else:
+                        kwargs_call.update(options_dict)
 
                 result = models.execute_kw(
                     odoo_db,
@@ -103,6 +130,19 @@ class OdooCall(Tool):
                 return result
             except RepairableException:
                 raise
+            except xmlrpclib.Fault as fault:
+                message = f"Odoo XML-RPC Fault {fault.faultCode}: {fault.faultString}"
+                lower_msg = str(fault.faultString).lower()
+                if "unexpected keyword" in lower_msg or "unexpected keyword argument" in lower_msg:
+                    message += (
+                        " | Hint: Check method-specific parameters. For 'read_group', use 'orderby' instead of 'order' and ensure 'groupby' is provided in options."
+                    )
+                try:
+                    tb = format_error(fault)
+                    PrintStyle.error(tb)
+                except Exception:
+                    PrintStyle.error(message)
+                raise RepairableException(message)
             except Exception as e:
                 # Preserve context: log the full formatted traceback and include exception type in the message
                 try:

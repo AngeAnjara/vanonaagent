@@ -8,13 +8,20 @@ Arguments:
 - model: Nom du modèle Odoo (ex: 'sale.order', 'res.partner', 'product.product')
 - method: Méthode à appeler (ex: 'search_read', 'read_group')
 - domain: Liste de filtres Odoo (ex: [["date_order", ">=", "2024-01-01"]])
-- fields: Liste des champs à retourner (ex: ["name", "amount_total", "state"])
-- options: Dictionnaire d'options supplémentaires (limit, offset, order, groupby)
+- fields: Liste des champs à retourner (ex: ["name", "amount_total", "state"]).
+- options: Dictionnaire d'options supplémentaires.
+  - Pour `search` / `search_read`: `limit`, `offset`, `order`.
+  - Pour `read`: `fields` (si non passé au niveau racine).
+  - Pour `read_group`: `fields`, `groupby` (obligatoires), `limit`, `offset`, `orderby`, `lazy`, `context`.
 
 Notes:
 - Les domaines Odoo sont des listes de conditions.
 - Les dates doivent être au format ISO (YYYY-MM-DD).
 - Limitez les résultats pour éviter de surcharger le contexte.
+- Pour `read_group`, utilisez toujours `orderby` (et non `order`) pour définir le tri.
+- Pour `read_group`, `groupby` est obligatoire dans `options`.
+- Exemples de groupby temporels: `"date_order:day"`, `"date_order:month"`, `"date_order:year"`.
+- Exemples d'agrégations: `"amount_total:sum"`, `"amount_total:avg"`, `"id:count"`.
 
 **Example usage**:
 ~~~json
@@ -43,7 +50,9 @@ Notes:
     "domain": [["state", "in", ["sale", "done"]]],
     "options": {
       "fields": ["amount_total:sum"],
-      "groupby": ["date_order:month"]
+      "groupby": ["date_order:month"],
+      "orderby": "date_order:month desc",
+      "limit": 100
     }
   }
 }
