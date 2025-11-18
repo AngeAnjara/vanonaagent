@@ -1,6 +1,8 @@
 ### odoo_call:
 
 **Prerequisites**: This tool requires Odoo integration to be enabled and configured in Settings. If you receive an error about Odoo not being enabled, inform the user to configure their Odoo connection in **Settings > Odoo Integration**.
+
+⚠️ **Compatibilité des versions** : Les noms de champs et de modèles peuvent varier entre les versions d'Odoo (14, 15, 16, 17, etc.). Utilisez toujours `discover_fields` pour vérifier les champs disponibles avant de faire des requêtes complexes.
 Connecte l'agent à une instance Odoo via l'API XML-RPC pour interroger les données métier (ventes, clients, produits, etc.).
 Peut appeler des méthodes Odoo comme 'search', 'search_read', 'read', 'read_group', 'create', 'write'.
 
@@ -46,6 +48,21 @@ Exemple pour découvrir les modèles métier disponibles:
 }
 ~~~
 
+~~~json
+{
+  "thoughts": ["Lister les factures clients"],
+  "headline": "Liste des factures",
+  "tool_name": "odoo_call",
+  "tool_args": {
+    "model": "account.move",
+    "method": "search_read",
+    "domain": [["move_type", "=", "out_invoice"]],
+    "fields": ["name", "partner_id", "amount_total", "state", "move_type", "invoice_date"],
+    "options": {"limit": 50, "order": "invoice_date desc"}
+  }
+}
+~~~
+
 Vous pouvez également demander à l'outil de retourner une liste de modèles métier filtrés et mise en cache en utilisant le drapeau `discover_models` :
 
 ~~~json
@@ -74,6 +91,38 @@ Vous pouvez également demander à l'outil de retourner une liste de modèles m�
 - **RH**: `hr.employee` (Employés), `hr.leave` (Congés)
 
 ⚠️ Si vous recevez une erreur indiquant qu'un modèle « n'existe pas » (par exemple `account.financial.report`), vérifiez d'abord que le module correspondant est installé dans Odoo, ou utilisez `ir.model` comme ci-dessus pour découvrir les modèles disponibles.
+
+#### ⚠️ Champs obsolètes et leurs remplacements (Odoo 16+)
+
+| Modèle          | Ancien champ (≤15) | Nouveau champ (16+) |
+|-----------------|--------------------|---------------------|
+| `account.account` | `user_type_id`   | `account_type`      |
+| `account.account` | `type`           | `account_type`      |
+| `res.partner`     | `type`           | `company_type`      |
+
+Si vous recevez une erreur "Invalid field", utilisez `discover_fields` pour obtenir la liste à jour des champs disponibles.
+
+### Découverte des champs disponibles
+
+Les champs disponibles sur un modèle varient selon la version d'Odoo et les modules installés.
+Utilisez `discover_fields` pour interroger la structure d'un modèle avant d'écrire des requêtes complexes ou après une erreur "Invalid field".
+
+Exemple pour découvrir les champs du modèle `account.account` :
+
+~~~json
+{
+  "thoughts": ["Je dois vérifier quels champs sont disponibles sur account.account"],
+  "headline": "Découverte des champs du modèle account.account",
+  "tool_name": "odoo_call",
+  "tool_args": {
+    "discover_fields": "account.account"
+  }
+}
+~~~
+
+La réponse contient les métadonnées complètes de chaque champ (type, libellé, requis, relation, etc.).
+
+Vous pouvez ensuite utiliser ces informations pour construire une requête `search_read` adaptée à votre version d'Odoo.
 
 **Example usage**:
 ~~~json

@@ -11,6 +11,7 @@ from python.helpers.print_style import PrintStyle
 class OdooCall(Tool):
 
     _models_cache: dict[str, list[dict[str, Any]]] = {}
+    _fields_cache: dict[str, dict[str, Any]] = {}
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -37,6 +38,7 @@ class OdooCall(Tool):
         vals = kwargs.get("vals", self.args.get("vals"))
         raw_args = kwargs.get("raw_args", self.args.get("raw_args", []))
         discover_models: bool = kwargs.get("discover_models", self.args.get("discover_models", False))
+        discover_fields: str | None = kwargs.get("discover_fields", self.args.get("discover_fields"))
 
         # Validate configuration
         missing = [
@@ -53,7 +55,7 @@ class OdooCall(Tool):
             raise RepairableException(
                 "Missing Odoo configuration values. Please configure Odoo in Settings > Odoo Integration."
             )
-        if not discover_models and (not model or not method):
+        if not discover_models and not discover_fields and (not model or not method):
             raise RepairableException("'model' and 'method' are required arguments for odoo_call")
 
         # Build endpoints
@@ -72,6 +74,9 @@ class OdooCall(Tool):
 
                 if discover_models:
                     return self._discover_models(models, odoo_db, uid, odoo_password, odoo_url)
+
+                if discover_fields:
+                    return self._discover_fields(models, odoo_db, uid, odoo_password, discover_fields, odoo_url)
 
                 args_list = []
                 if method in ("search", "search_read"):
@@ -150,8 +155,15 @@ class OdooCall(Tool):
                     "unknown model",
                     "no such model",
                 ]
+                invalid_field_markers = [
+                    "invalid field",
+                    "champ invalide",
+                    "field not found",
+                    "unknown field",
+                ]
                 structured_message: str | None = None
                 suggested_models: list[dict[str, Any]] = []
+                invalid_field_payload: dict[str, Any] | None = None
                 if any(marker in lower_msg for marker in missing_model_markers):
                     standard_models = [
                         "sale.order",
@@ -187,6 +199,83 @@ class OdooCall(Tool):
                             structured_message = json.dumps(error_payload, ensure_ascii=False, default=str)
                         except Exception:
                             structured_message = None
+                # Handle invalid field errors with field discovery suggestions
+                if any(marker in lower_msg for marker in invalid_field_markers):
+                    # Best-effort extraction of the invalid field name between quotes
+                    invalid_field_name: str | None = None
+                    try:
+                        text = str(fault.faultString)
+                        quote_start = text.find("'")
+                        quote_end = text.find("'", quote_start + 1) if quote_start != -1 else -1
+                        if quote_start != -1 and quote_end != -1:
+                            invalid_field_name = text[quote_start + 1 : quote_end]
+                    except Exception:
+                        invalid_field_name = None
+
+                    obsolete_mapping: dict[str, str] = {
+                        "account.account:user_type_id": "account_type",
+                        "account.account:type": "account_type",
+                        "res.partner:type": "company_type",
+                    }
+                    obsolete_suggestion: str | None = None
+                    if model and invalid_field_name:
+                        key = f"{model}:{invalid_field_name}"
+                        obsolete_suggestion = obsolete_mapping.get(key)
+
+                    field_metadata: dict[str, Any] = {}
+                    available_fields_list: list[dict[str, Any]] = []
+                    try:
+                        if model:
+                            field_metadata = self._discover_fields(models, odoo_db, uid, odoo_password, model, odoo_url)
+                    except Exception:
+                        field_metadata = {}
+
+                    if field_metadata:
+                        # Build a list of field descriptors and sort by relevance (required > stored > name)
+                        for fname, meta in field_metadata.items():
+                            available_fields_list.append(
+                                {
+                                    "name": fname,
+                                    "type": meta.get("type"),
+                                    "label": meta.get("string"),
+                                    "required": bool(meta.get("required")),
+                                    "store": bool(meta.get("store", True)),
+                                }
+                            )
+                        available_fields_list.sort(
+                            key=lambda f: (
+                                not f["required"],
+                                not f["store"],
+                                (f["name"] or ""),
+                            )
+                        )
+                        available_fields_list = available_fields_list[:50]
+
+                    similar_suggestions: list[str] = []
+                    if invalid_field_name and available_fields_list:
+                        for f in available_fields_list:
+                            if invalid_field_name in f["name"] or f["name"] in invalid_field_name:
+                                similar_suggestions.append(f["name"])
+                        similar_suggestions = sorted(set(similar_suggestions))
+
+                    message += " | Le champ demandé n'est pas valide pour ce modèle."
+                    if invalid_field_name and model:
+                        message += f" Champ invalide: '{invalid_field_name}' sur le modèle '{model}'."
+                    if obsolete_suggestion:
+                        message += f" Ce champ semble obsolète; essayez plutôt '{obsolete_suggestion}'."
+
+                    invalid_field_payload = {
+                        "error": message,
+                        "model": model,
+                        "invalid_field": invalid_field_name,
+                        "available_fields": available_fields_list,
+                        "similar_suggestions": similar_suggestions,
+                    }
+                    try:
+                        structured_message = json.dumps(invalid_field_payload, ensure_ascii=False, default=str)
+                    except Exception:
+                        # keep previous structured_message if any, otherwise leave as text
+                        pass
                 try:
                     tb = format_error(fault)
                     PrintStyle.error(tb)
@@ -205,10 +294,17 @@ class OdooCall(Tool):
 
         data = await asyncio.to_thread(_run)
 
+        operation = "call"
+        if discover_models:
+            operation = "discover_models"
+        elif discover_fields:
+            operation = "discover_fields"
+
         message = json.dumps(
             {
                 "model": model,
                 "method": method,
+                "operation": operation,
                 "result": data,
             },
             ensure_ascii=False,
@@ -273,3 +369,40 @@ class OdooCall(Tool):
 
         OdooCall._models_cache[cache_key] = filtered
         return filtered
+
+    @staticmethod
+    def _discover_fields(
+        models_proxy: xmlrpclib.ServerProxy,
+        db: str,
+        uid: int,
+        password: str,
+        model_name: str,
+        url: str,
+    ) -> dict[str, Any]:
+        cache_key = f"{url.rstrip('/')}_{db}_{model_name}"
+        cached = OdooCall._fields_cache.get(cache_key)
+        if cached is not None:
+            return cached
+
+        try:
+            result: dict[str, Any] = models_proxy.execute_kw(
+                db,
+                uid,
+                password,
+                model_name,
+                "fields_get",
+                [[]],
+                {"attributes": ["type", "string", "required", "store", "relation"]},
+            )
+        except Exception:
+            result = {}
+
+        # Optionally filter out internal/system fields starting with '__'
+        filtered_result: dict[str, Any] = {}
+        for fname, meta in (result or {}).items():
+            if fname.startswith("__"):
+                continue
+            filtered_result[fname] = meta
+
+        OdooCall._fields_cache[cache_key] = filtered_result
+        return filtered_result

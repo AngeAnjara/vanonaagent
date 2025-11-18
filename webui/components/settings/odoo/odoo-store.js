@@ -11,6 +11,7 @@ const model = {
   statusMessage: "",
   statusType: "info",
   availableModels: [],
+  fieldDiscoveryStatus: "unknown",
 
   async init() {
     await this.loadFromSettings();
@@ -30,6 +31,36 @@ const model = {
         window.toastFrontendError("Failed to copy model name.", "Odoo Model");
       }
     }
+  },
+
+  async copyFieldsToClipboard(modelName) {
+    try {
+      const entry = this.availableModels.find((m) => m.model === modelName);
+      if (!entry || !Array.isArray(entry.sample_fields)) {
+        return;
+      }
+
+      const fieldNames = entry.sample_fields.map((f) => f.name);
+      if (navigator && navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(JSON.stringify(fieldNames));
+        if (window && window.toastFrontendInfo) {
+          window.toastFrontendInfo(`Fields for '${modelName}' copied to clipboard.`, "Odoo Fields");
+        }
+      }
+    } catch (err) {
+      console.error("Failed to copy fields", err);
+      if (window && window.toastFrontendError) {
+        window.toastFrontendError("Failed to copy fields.", "Odoo Fields");
+      }
+    }
+  },
+
+  getFieldLabel(field) {
+    if (!field) return "";
+    const name = field.name || "";
+    const type = field.type || "";
+    const requiredMark = field.required ? " *" : "";
+    return `${name} (${type})${requiredMark}`;
   },
 
   async loadFromSettings() {
@@ -133,6 +164,7 @@ const model = {
 
   clearAvailableModels() {
     this.availableModels = [];
+    this.fieldDiscoveryStatus = "unknown";
   },
 
   async testConnection() {
@@ -163,6 +195,8 @@ const model = {
         } else {
           this.availableModels = [];
         }
+
+        this.fieldDiscoveryStatus = data.field_discovery_status || "unknown";
 
         window.toastFrontendInfo(this.statusMessage, "Odoo Connection");
       } else {

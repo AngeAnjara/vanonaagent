@@ -147,6 +147,49 @@
                     </div>
                 </div>
 
+                <!-- Sample fields for common models -->
+                <div class="field field-full"
+                     x-show="$store.odooStore.availableModels && $store.odooStore.availableModels.some(m => m.sample_fields && m.sample_fields.length)">
+                    <div class="field-label">
+                        <div class="field-title">Exemples de champs pour les modèles courants</div>
+                        <div class="field-description">
+                            Les champs ci-dessous sont découverts automatiquement via <code>fields_get</code> pour quelques modèles métier.
+                            Utilisez ces informations comme point de départ pour construire vos requêtes.
+                        </div>
+                    </div>
+                    <div class="field-control">
+                        <template x-for="m in $store.odooStore.availableModels.filter(m => m.sample_fields && m.sample_fields.length).slice(0, 5)" :key="m.model + '-fields'">
+                            <div class="odoo-fields-block">
+                                <div class="odoo-fields-header">
+                                    <div class="odoo-fields-title">
+                                        <span class="odoo-model-code" x-text="m.model"></span>
+                                        <span class="odoo-fields-name" x-text="m.name"></span>
+                                    </div>
+                                    <button type="button" class="odoo-model-copy" @click="$store.odooStore.copyFieldsToClipboard(m.model)">
+                                        <span class="material-symbols-outlined">content_copy</span>
+                                        <span>Copy fields</span>
+                                    </button>
+                                </div>
+                                <ul class="odoo-fields-list">
+                                    <template x-for="field in m.sample_fields" :key="m.model + '-' + field.name">
+                                        <li class="odoo-field-item">
+                                            <span class="odoo-field-label" x-text="$store.odooStore.getFieldLabel(field)"></span>
+                                            <span class="odoo-field-badge required" x-show="field.required">Required</span>
+                                        </li>
+                                    </template>
+                                </ul>
+                            </div>
+                        </template>
+
+                        <div class="odoo-fields-warning" x-show="$store.odooStore.fieldDiscoveryStatus === 'partial'">
+                            Certains champs n'ont pas pu être récupérés. Utilisez <code>discover_fields</code> dans <code>odoo_call</code> pour une introspection plus détaillée.
+                        </div>
+                        <div class="odoo-fields-warning" x-show="$store.odooStore.fieldDiscoveryStatus === 'failed'">
+                            La découverte automatique des champs a échoué. Vous pouvez toujours utiliser <code>discover_fields</code> directement dans l'outil <code>odoo_call</code>.
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Available business models -->
                 <div class="field field-full" x-show="$store.odooStore.availableModels && $store.odooStore.availableModels.length">
                     <div class="field-label">
@@ -279,6 +322,67 @@
 
         .odoo-model-copy:hover {
             background-color: rgba(0, 0, 0, 0.05);
+        }
+
+        .odoo-fields-block {
+            border-radius: 8px;
+            border: 1px solid rgba(0, 0, 0, 0.06);
+            padding: 0.75rem 0.9rem;
+            margin-bottom: 0.75rem;
+            background-color: rgba(0, 0, 0, 0.02);
+        }
+
+        .odoo-fields-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.5rem;
+            margin-bottom: 0.35rem;
+        }
+
+        .odoo-fields-title {
+            display: flex;
+            flex-direction: column;
+            gap: 0.1rem;
+        }
+
+        .odoo-fields-name {
+            font-size: 0.75rem;
+            color: #555;
+        }
+
+        .odoo-fields-list {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.35rem 0.75rem;
+        }
+
+        .odoo-field-item {
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+            font-size: 0.75rem;
+        }
+
+        .odoo-field-label {
+            font-family: monospace;
+        }
+
+        .odoo-field-badge.required {
+            font-size: 0.65rem;
+            padding: 0.05rem 0.4rem;
+            border-radius: 999px;
+            background-color: rgba(220, 53, 69, 0.08);
+            color: #721c24;
+        }
+
+        .odoo-fields-warning {
+            margin-top: 0.5rem;
+            font-size: 0.75rem;
+            color: #856404;
         }
     </style>
 

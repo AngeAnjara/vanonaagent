@@ -65,6 +65,7 @@ class OdooTestConnection(ApiHandler):
 
             available_models = []
             enrichment_hint = ""
+            field_discovery_status = "not_run"
             try:
                 models_proxy = xmlrpclib.ServerProxy(object_url)
                 domain = [["transient", "=", False]]
@@ -106,8 +107,76 @@ class OdooTestConnection(ApiHandler):
                             "model": model_name,
                             "name": (rec or {}).get("name", model_name),
                             "available": rec is not None,
+                            "sample_fields": [],
                         }
                     )
+
+                # Enrich with sample fields for a limited subset of available models
+                import time as _time  # local import to avoid polluting global namespace too much
+
+                start_ts = _time.monotonic()
+                max_seconds = 5.0
+                max_models_for_fields = 6
+                target_for_fields = [
+                    m
+                    for m in available_models
+                    if m["available"]
+                    and m["model"]
+                    in {
+                        "sale.order",
+                        "res.partner",
+                        "account.move",
+                        "product.product",
+                        "stock.picking",
+                        "crm.lead",
+                    }
+                ][:max_models_for_fields]
+
+                field_discovery_status = "success" if target_for_fields else "not_run"
+
+                for entry in target_for_fields:
+                    if _time.monotonic() - start_ts > max_seconds:
+                        field_discovery_status = "partial" if entry is not target_for_fields[0] else "failed"
+                        enrichment_hint = (
+                            enrichment_hint
+                            + " Field discovery timed out; use discover_fields in odoo_call for detailed introspection."
+                        )
+                        break
+
+                    model_name = entry["model"]
+                    try:
+                        fields_meta = models_proxy.execute_kw(
+                            db,
+                            uid,
+                            password,
+                            model_name,
+                            "fields_get",
+                            [[]],
+                            {"attributes": ["type", "string", "required"]},
+                        )
+                    except Exception:
+                        field_discovery_status = "partial" if field_discovery_status == "success" else "failed"
+                        continue
+
+                    sample_list = []
+                    for fname, meta in (fields_meta or {}).items():
+                        sample_list.append(
+                            {
+                                "name": fname,
+                                "type": meta.get("type"),
+                                "label": meta.get("string"),
+                                "required": bool(meta.get("required")),
+                            }
+                        )
+
+                    # Heuristic: prioritize required and common business fields
+                    def _field_priority(f: dict) -> tuple:
+                        n = f["name"] or ""
+                        common = any(key in n for key in ["name", "date", "amount", "total", "partner"])
+                        return (not f["required"], not common, n)
+
+                    sample_list.sort(key=_field_priority)
+                    entry["sample_fields"] = sample_list[:15]
 
             except Exception as enrich_err:  # noqa: BLE001
                 try:
@@ -116,12 +185,14 @@ class OdooTestConnection(ApiHandler):
                 except Exception:  # noqa: BLE001
                     PrintStyle.error(f"{type(enrich_err).__name__}: {enrich_err}")
                 enrichment_hint = " However, Agent Zero could not retrieve the list of business models (missing access rights to ir.model or another server-side issue)."
+                field_discovery_status = "failed"
 
             return {
                 "success": True,
                 "message": "Odoo connection and authentication successful." + enrichment_hint,
                 "available_models": available_models,
                 "odoo_version": odoo_version,
+                "field_discovery_status": field_discovery_status,
             }
 
         except Exception as e:  # noqa: BLE001
