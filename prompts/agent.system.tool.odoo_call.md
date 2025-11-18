@@ -92,13 +92,35 @@ Vous pouvez également demander à l'outil de retourner une liste de modèles m�
 
 ⚠️ Si vous recevez une erreur indiquant qu'un modèle « n'existe pas » (par exemple `account.financial.report`), vérifiez d'abord que le module correspondant est installé dans Odoo, ou utilisez `ir.model` comme ci-dessus pour découvrir les modèles disponibles.
 
+### Recettes métier courantes
+
+- **Situation financière globale (soldes de comptes)**
+  - `account.account` décrit le plan comptable mais ne contient pas directement les soldes réels.
+  - Les soldes doivent être calculés depuis `account.move.line` en agrégeant `debit`, `credit` et `balance` par `account_id`.
+  - Filtre typique par période: `[["date", ">=", "YYYY-01-01"], ["date", "<=", "YYYY-12-31"], ["parent_state", "=", "posted"]]`.
+
+- **Chiffre d'affaires et ventes**
+  - Pour les commandes confirmées: `sale.order` avec `state` dans `['sale', 'done']`.
+  - Pour le chiffre d'affaires comptabilisé: `account.move` avec `move_type = 'out_invoice'` et `state = 'posted'`.
+  - Agrégations fréquentes par mois: `groupby` sur `date_order:month` ou `invoice_date:month`.
+
+- **Trésorerie et banque**
+  - Utiliser `account.bank.statement.line` pour analyser les flux de trésorerie bancaires.
+  - Champs clés: `date`, `amount`, `payment_ref`, `partner_id`, `journal_id`.
+  - Agréger par `journal_id` pour voir la trésorerie par journal bancaire.
+
+- **Comptes clients/fournisseurs (balance âgée)**
+  - Utiliser `account.move.line` avec un domaine du type:
+    - `[["account_id.account_type", "in", ["asset_receivable", "liability_payable"]], ["reconciled", "=", false]]`.
+  - Grouper par `partner_id` pour obtenir les soldes par client/fournisseur.
+
 #### ⚠️ Champs obsolètes et leurs remplacements (Odoo 16+)
 
-| Modèle          | Ancien champ (≤15) | Nouveau champ (16+) |
-|-----------------|--------------------|---------------------|
-| `account.account` | `user_type_id`   | `account_type`      |
-| `account.account` | `type`           | `account_type`      |
-| `res.partner`     | `type`           | `company_type`      |
+| Modèle           | Ancien champ (≤15) | Nouveau champ (16+) | Alternative recommandée                                      |
+|------------------|--------------------|----------------------|--------------------------------------------------------------|
+| `account.account` | `user_type_id`    | `account_type`       | Utiliser `account_type` et agréger avec `account.move.line`. |
+| `account.account` | `type`            | `account_type`       | Même recommandation que ci-dessus.                           |
+| `res.partner`     | `type`            | `company_type`       | Utiliser `company_type` et les champs de contact standard.   |
 
 Si vous recevez une erreur "Invalid field", utilisez `discover_fields` pour obtenir la liste à jour des champs disponibles.
 
@@ -123,6 +145,8 @@ Exemple pour découvrir les champs du modèle `account.account` :
 La réponse contient les métadonnées complètes de chaque champ (type, libellé, requis, relation, etc.).
 
 Vous pouvez ensuite utiliser ces informations pour construire une requête `search_read` adaptée à votre version d'Odoo.
+
+⚠️ **Champs calculés** : Les champs comme `current_balance` sur `account.account` sont calculés dynamiquement et peuvent nécessiter un contexte spécifique (date, société). Pour des données financières fiables (soldes, chiffre d'affaires, etc.), privilégiez toujours les modèles de données stockées comme `account.move.line` et agrégerez avec `read_group`.
 
 **Example usage**:
 ~~~json
@@ -187,3 +211,39 @@ Vous pouvez ensuite utiliser ces informations pour construire une requête `sear
   }
 }
 ~~~
+
+### Limitations et bonnes pratiques
+
+#### Résumé des méthodes
+
+| Méthode      | Usage                | Arguments clés                             | Retour                           |
+|--------------|----------------------|--------------------------------------------|----------------------------------|
+| `search`     | Trouver des IDs      | `domain`, `limit`, `order`                 | Liste d'IDs                      |
+| `search_read`| Recherche + lecture  | `domain`, `fields`, `limit`, `order`       | Liste de dicts (enregistrements) |
+| `read`       | Lire par IDs         | `ids`, `fields`                            | Liste de dicts                   |
+| `read_group` | Agrégation           | `domain`, `fields`, `groupby`, `orderby`, `limit` | Liste de groupes agrégés  |
+| `create`     | Créer                | `vals`                                     | ID créé                          |
+| `write`      | Modifier             | `ids`, `vals`                              | `true`                           |
+| `unlink`     | Supprimer            | `ids`                                      | `true`                           |
+
+#### Champs calculés vs stockés
+
+- Les champs avec `"store": true` sont persistés en base et plus fiables pour les agrégations massives.
+- Les champs calculés (`store = false`) sont évalués à la volée et peuvent être plus lents ou dépendre d'un contexte.
+- Utilisez `discover_fields` pour vérifier si un champ est stocké (`"store": true`) avant de l'utiliser dans des reporting lourds.
+
+#### Contexte Odoo
+
+- Certaines requêtes peuvent nécessiter un contexte spécifique (langue, fuseau horaire, société, etc.).
+- Passez le contexte via `options: {"context": {"lang": "fr_FR", "tz": "Europe/Paris"}}`.
+
+#### Performance
+
+- Limitez les résultats avec `limit` (ex: 50–100 pour `search_read`, 200 pour `read_group`).
+- Ne chargez pas tous les champs par défaut: spécifiez uniquement les champs nécessaires dans `fields`.
+- Pour les relations (`many2one`, `one2many`), seul l'ID est retourné par défaut; utilisez des requêtes supplémentaires pour obtenir les détails complets.
+
+#### Permissions
+
+- L'utilisateur Odoo configuré doit avoir les droits de lecture sur les modèles interrogés.
+- Les erreurs de type "Access Denied" indiquent un problème de permissions, pas de configuration technique; l'utilisateur doit vérifier ses rôles dans Odoo.

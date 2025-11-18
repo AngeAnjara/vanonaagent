@@ -8,6 +8,14 @@ from python.helpers.errors import RepairableException, format_error
 from python.helpers.print_style import PrintStyle
 
 
+_OBSOLETE_FIELD_MAPPING: dict[str, str] = {
+    "account.account:user_type_id": "account_type",
+    "account.account:type": "account_type",
+    "account.account:balance": "current_balance",
+    "res.partner:type": "company_type",
+}
+
+
 class OdooCall(Tool):
 
     _models_cache: dict[str, list[dict[str, Any]]] = {}
@@ -212,15 +220,10 @@ class OdooCall(Tool):
                     except Exception:
                         invalid_field_name = None
 
-                    obsolete_mapping: dict[str, str] = {
-                        "account.account:user_type_id": "account_type",
-                        "account.account:type": "account_type",
-                        "res.partner:type": "company_type",
-                    }
                     obsolete_suggestion: str | None = None
                     if model and invalid_field_name:
                         key = f"{model}:{invalid_field_name}"
-                        obsolete_suggestion = obsolete_mapping.get(key)
+                        obsolete_suggestion = _OBSOLETE_FIELD_MAPPING.get(key)
 
                     field_metadata: dict[str, Any] = {}
                     available_fields_list: list[dict[str, Any]] = []
@@ -292,7 +295,62 @@ class OdooCall(Tool):
                     PrintStyle.error(f"{type(e).__name__}: {e}")
                 raise RepairableException(f"{type(e).__name__}: {e}")
 
-        data = await asyncio.to_thread(_run)
+        data = None
+        max_attempts = 2
+        attempt = 0
+        last_error: RepairableException | None = None
+
+        while attempt < max_attempts:
+            try:
+                data = await asyncio.to_thread(_run)
+                break
+            except RepairableException as exc:
+                last_error = exc
+                # Try a single auto-correction pass for invalid field errors on first failure
+                if attempt == 0:
+                    effective_fields: list[str] | None = None
+                    fields_source: str | None = None  # "root" or "options"
+
+                    if fields:
+                        effective_fields = fields
+                        fields_source = "root"
+                    elif isinstance(options, dict) and isinstance(options.get("fields"), list):
+                        effective_fields = options.get("fields")
+                        fields_source = "options"
+
+                    if effective_fields:
+                        corrected_fields = self._auto_correct_fields(model, method, effective_fields, str(exc))
+                        if corrected_fields is not None:
+                            try:
+                                old_fields = ", ".join(effective_fields)
+                            except Exception:
+                                old_fields = str(effective_fields)
+                            try:
+                                new_fields = ", ".join(corrected_fields)
+                            except Exception:
+                                new_fields = str(corrected_fields)
+                            try:
+                                PrintStyle.hint(
+                                    f"Auto-correcting Odoo fields for {model or ''}:{method or ''} from [{old_fields}] to [{new_fields}] after invalid field error."
+                                )
+                            except Exception:
+                                # Ignore logging issues
+                                pass
+
+                            # Write corrected fields back to the original source
+                            if fields_source == "root":
+                                fields = corrected_fields
+                            elif fields_source == "options":
+                                if isinstance(options, dict):
+                                    options["fields"] = corrected_fields
+
+                            attempt += 1
+                            continue
+                # No correction possible or retry already attempted
+                raise
+
+        if data is None and last_error is not None:
+            raise last_error
 
         operation = "call"
         if discover_models:
@@ -406,3 +464,56 @@ class OdooCall(Tool):
 
         OdooCall._fields_cache[cache_key] = filtered_result
         return filtered_result
+
+    @staticmethod
+    def _auto_correct_fields(
+        model: str | None,
+        method: str | None,
+        fields: list[str] | None,
+        error_message: str,
+    ) -> list[str] | None:
+        """Attempt to auto-correct invalid fields based on structured error payload.
+
+        Expects error_message to be either plain text or a JSON string with keys like
+        'invalid_field' and 'similar_suggestions'. Returns a new fields list or None
+        if no safe correction can be inferred.
+        """
+        if not fields or not isinstance(fields, list):
+            return None
+
+        payload: dict[str, Any] | None = None
+        try:
+            payload_candidate = json.loads(error_message)
+            if isinstance(payload_candidate, dict):
+                payload = payload_candidate
+        except Exception:
+            payload = None
+
+        if not payload:
+            return None
+
+        invalid_field = payload.get("invalid_field")
+        similar_suggestions = payload.get("similar_suggestions") or []
+        if not isinstance(similar_suggestions, list):
+            similar_suggestions = []
+
+        replacement: str | None = None
+        if model and invalid_field:
+            key = f"{model}:{invalid_field}"
+            replacement = _OBSOLETE_FIELD_MAPPING.get(key)
+
+        # Fallback: if exactly one similar suggestion, use it
+        if not replacement and similar_suggestions:
+            unique = list({str(s) for s in similar_suggestions if isinstance(s, str)})
+            if len(unique) == 1:
+                replacement = unique[0]
+
+        if not invalid_field or not replacement:
+            return None
+
+        # Only auto-correct when the invalid field is explicitly present in the fields list
+        if invalid_field not in fields:
+            return None
+
+        corrected = [replacement if f == invalid_field else f for f in fields]
+        return corrected
