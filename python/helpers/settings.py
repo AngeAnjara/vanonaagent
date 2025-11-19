@@ -118,6 +118,15 @@ class Settings(TypedDict):
     odoo_user: str
     odoo_password: str
 
+    # Image generation (WaveSpeed) integration
+    image_gen_enabled: bool
+    image_gen_api_key: str
+    image_gen_model: str
+    image_gen_default_width: int
+    image_gen_default_height: int
+    image_gen_default_steps: int
+    image_gen_batch_size: int
+
 class PartialSettings(Settings, total=False):
     pass
 
@@ -643,6 +652,107 @@ def convert_out(settings: Settings) -> SettingsOutput:
         "description": "Configure connection to your Odoo ERP instance for business data queries.",
         "fields": odoo_fields,
         "tab": "agent",
+    }
+
+    # Image generation (WaveSpeed) integration section
+    image_gen_fields: list[SettingsField] = []
+
+    image_gen_fields.append(
+        {
+            "id": "image_gen_enabled",
+            "title": "Enable WaveSpeed Image Generation",
+            "description": "Activate WaveSpeed image generation tool to create marketing visuals and designs.",
+            "type": "switch",
+            "value": settings["image_gen_enabled"],
+        }
+    )
+
+    image_gen_fields.append(
+        {
+            "id": "image_gen_api_key",
+            "title": "WaveSpeed API Key",
+            "description": "Your WaveSpeed API key. Stored securely in .env and not exposed in logs.",
+            "type": "password",
+            "value": (
+                API_KEY_PLACEHOLDER
+                if dotenv.get_dotenv_value("IMAGE_GEN_API_KEY")
+                else ""
+            ),
+        }
+    )
+
+    image_gen_fields.append(
+        {
+            "id": "image_gen_model",
+            "title": "Default Model",
+            "description": "Select the default WaveSpeed image model.",
+            "type": "select",
+            "value": settings["image_gen_model"],
+            "options": [
+                {"value": "seedance", "label": "SeeDance (High quality)"},
+                {"value": "nanobanana", "label": "NanoBanana (Fast)"},
+            ],
+        }
+    )
+
+    image_gen_fields.append(
+        {
+            "id": "image_gen_default_width",
+            "title": "Default Width",
+            "description": "Default image width in pixels.",
+            "type": "number",
+            "min": 512,
+            "max": 2048,
+            "step": 64,
+            "value": settings["image_gen_default_width"],
+        }
+    )
+
+    image_gen_fields.append(
+        {
+            "id": "image_gen_default_height",
+            "title": "Default Height",
+            "description": "Default image height in pixels.",
+            "type": "number",
+            "min": 512,
+            "max": 2048,
+            "step": 64,
+            "value": settings["image_gen_default_height"],
+        }
+    )
+
+    image_gen_fields.append(
+        {
+            "id": "image_gen_default_steps",
+            "title": "Default Steps",
+            "description": "Default number of generation steps (higher = better quality, slower).",
+            "type": "number",
+            "min": 10,
+            "max": 100,
+            "step": 5,
+            "value": settings["image_gen_default_steps"],
+        }
+    )
+
+    image_gen_fields.append(
+        {
+            "id": "image_gen_batch_size",
+            "title": "Default Batch Size",
+            "description": "Default number of images to generate per request.",
+            "type": "range",
+            "min": 1,
+            "max": 5,
+            "step": 1,
+            "value": settings["image_gen_batch_size"],
+        }
+    )
+
+    image_gen_section: SettingsSection = {
+        "id": "image_gen",
+        "title": "Image Generation (WaveSpeed)",
+        "description": "Configure WaveSpeed image generation for marketing visuals and design assets.",
+        "fields": image_gen_fields,
+        "tab": "integrations",
     }
 
     # api keys model section
@@ -1332,6 +1442,7 @@ def convert_out(settings: Settings) -> SettingsOutput:
             memory_section,
             speech_section,
             odoo_section,
+            image_gen_section,
             api_keys_section,
             litellm_section,
             secrets_section,
@@ -1471,6 +1582,7 @@ def _remove_sensitive_settings(settings: Settings):
     settings["root_password"] = ""
     settings["mcp_server_token"] = ""
     settings["secrets"] = ""
+    settings["image_gen_api_key"] = ""
 
 
 def _write_sensitive_settings(settings: Settings):
@@ -1493,6 +1605,10 @@ def _write_sensitive_settings(settings: Settings):
     submitted_content = settings["secrets"]
     secrets_manager.save_secrets_with_merge(submitted_content)
     secrets_manager.clear_cache()  # Clear cache to reload secrets
+
+    # WaveSpeed image generation API key is stored in .env
+    if settings["image_gen_api_key"]:
+        dotenv.save_dotenv_value("IMAGE_GEN_API_KEY", settings["image_gen_api_key"])
 
 
 
@@ -1580,6 +1696,13 @@ def get_default_settings() -> Settings:
         odoo_db="",
         odoo_user="",
         odoo_password="",
+        image_gen_enabled=False,
+        image_gen_api_key="",
+        image_gen_model="seedance",
+        image_gen_default_width=1024,
+        image_gen_default_height=1024,
+        image_gen_default_steps=30,
+        image_gen_batch_size=5,
     )
 
 

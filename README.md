@@ -362,6 +362,28 @@ The agent will use `odoo_call` to query `sale.order` with a date filter and pres
 ### Available
 - Tool: `odoo_call` – calls Odoo models/methods like `search`, `search_read`, `read`, `read_group`, `create`, `write`.
 
+## 🎨 Image Generation (WaveSpeed)
+
+Agent Zero can generate professional images via the WaveSpeed API using models like SeeDance (high quality) and NanoBanana (fast). Use it to produce marketing visuals, social posts, banners, and mockups. The integration is available through the `image_generation` tool and a dedicated Settings panel.
+
+### Setup
+1. Obtain a WaveSpeed API key from https://wavespeed.ai
+2. Open Settings > Image Generation
+3. Enable the integration and paste your API key
+4. Choose a default model (SeeDance or NanoBanana) and defaults for width/height/steps/batch size
+5. Click “Test Connection” to verify
+
+You can also configure via `.env` using `IMAGE_GEN_API_KEY`.
+
+### Usage
+Ask the agent in natural language, for example:
+
+- "Generate 5 Instagram post designs with a modern tech aesthetic"
+- "Create a professional business card mockup"
+- "Design a web banner 1200x628 in blue and white"
+
+The agent will call the `image_generation` tool, contact WaveSpeed, and save the images to the work directory, returning local file paths.
+
 ## 🤝 Community and Support
 
 - [Join our Discord](https://discord.gg/B8KZKNsPpj) for live discussions or [visit our Skool Community](https://www.skool.com/agent-zero).

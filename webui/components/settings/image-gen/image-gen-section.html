@@ -1,0 +1,73 @@
+<script type="module" src="/components/settings/image-gen/image-gen-store.js"></script>
+
+<div x-data x-init="$store.imageGenStore?.init && $store.imageGenStore.init()" x-if="$store.imageGenStore" class="settings-section">
+  <div class="section-header">
+    <h2 class="section-title">Image Generation (WaveSpeed)</h2>
+    <p class="section-desc">Configure WaveSpeed API for AI-powered image generation (SeeDance / NanoBanana).</p>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="field">
+      <label class="field-label">Enable</label>
+      <label class="switch">
+        <input type="checkbox" x-model="$store.imageGenStore.enabled" />
+        <span class="slider round"></span>
+      </label>
+      <p class="field-help">Activate WaveSpeed integration.</p>
+    </div>
+
+    <div class="field">
+      <label class="field-label">API Key</label>
+      <input type="password" x-model="$store.imageGenStore.apiKey" placeholder="sk-..." class="input" />
+      <p class="field-help">Your WaveSpeed API key (stored securely).</p>
+    </div>
+
+    <div class="field">
+      <label class="field-label">Model</label>
+      <select x-model="$store.imageGenStore.model" class="input">
+        <option value="seedance">SeeDance (High Quality)</option>
+        <option value="nanobanana">NanoBanana (Fast)</option>
+      </select>
+      <p class="field-help">Choose the default model.</p>
+    </div>
+
+    <div class="field">
+      <label class="field-label">Default Width</label>
+      <input type="number" min="512" max="2048" step="64" x-model.number="$store.imageGenStore.width" class="input" />
+      <p class="field-help">Image width in pixels.</p>
+    </div>
+
+    <div class="field">
+      <label class="field-label">Default Height</label>
+      <input type="number" min="512" max="2048" step="64" x-model.number="$store.imageGenStore.height" class="input" />
+      <p class="field-help">Image height in pixels.</p>
+    </div>
+
+    <div class="field">
+      <label class="field-label">Default Steps</label>
+      <input type="number" min="10" max="100" step="5" x-model.number="$store.imageGenStore.steps" class="input" />
+      <p class="field-help">Higher = better quality but slower.</p>
+    </div>
+
+    <div class="field col-span-1 md:col-span-2">
+      <label class="field-label">Default Batch Size: <span x-text="$store.imageGenStore.batchSize"></span></label>
+      <input type="range" min="1" max="5" step="1" x-model.number="$store.imageGenStore.batchSize" class="range" />
+      <p class="field-help">How many images to generate per request.</p>
+    </div>
+  </div>
+
+  <div class="actions mt-4 flex gap-3">
+    <button class="btn" :disabled="$store.imageGenStore.isTesting" @click="$store.imageGenStore.testConnection()">
+      <span class="material-icons">play_circle</span>
+      <span>Test Connection</span>
+    </button>
+    <button class="btn-primary" :disabled="$store.imageGenStore.isSaving" @click="$store.imageGenStore.saveSettings()">
+      <span class="material-icons">save</span>
+      <span>Save Settings</span>
+    </button>
+  </div>
+
+  <div class="status mt-3" :class="{'status-success': $store.imageGenStore.statusType==='success', 'status-error': $store.imageGenStore.statusType==='error', 'status-info': $store.imageGenStore.statusType==='info'}">
+    <span x-text="$store.imageGenStore.statusMessage"></span>
+  </div>
+</div>

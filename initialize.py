@@ -85,6 +85,13 @@ def initialize_agent():
         odoo_db=current_settings["odoo_db"],
         odoo_user=current_settings["odoo_user"],
         odoo_password=current_settings["odoo_password"],
+        image_gen_enabled=current_settings["image_gen_enabled"],
+        image_gen_api_key=current_settings["image_gen_api_key"],
+        image_gen_model=current_settings["image_gen_model"],
+        image_gen_default_width=current_settings["image_gen_default_width"],
+        image_gen_default_height=current_settings["image_gen_default_height"],
+        image_gen_default_steps=current_settings["image_gen_default_steps"],
+        image_gen_batch_size=current_settings["image_gen_batch_size"],
         # code_exec params get initialized in _set_runtime_config
         # additional = {},
     )

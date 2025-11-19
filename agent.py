@@ -250,6 +250,15 @@ class AgentConfig:
     odoo_password_exists: bool = False
     odoo_password_clear: bool = False
 
+    # Image generation (WaveSpeed) integration config
+    image_gen_enabled: bool = False
+    image_gen_api_key: str = ""
+    image_gen_model: str = "seedance"
+    image_gen_default_width: int = 1024
+    image_gen_default_height: int = 1024
+    image_gen_default_steps: int = 30
+    image_gen_batch_size: int = 5
+
 
 @dataclass
 class UserMessage:
