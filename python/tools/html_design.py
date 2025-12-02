@@ -1,6 +1,7 @@
 import asyncio
 import json
 import time
+import os
 from typing import Any
 
 from python.helpers.tool import Tool, Response
@@ -129,10 +130,7 @@ class HtmlDesign(Tool):
             html = html_base
 
         out_dir = files.get_abs_path("outputs", "presentations")
-        try:
-            files.ensure_directory(out_dir)
-        except Exception:
-            pass
+        os.makedirs(out_dir, exist_ok=True)
         path = files.get_abs_path("outputs", "presentations", f"design_{int(time.time())}.html")
         try:
             files.write_file(path, html)

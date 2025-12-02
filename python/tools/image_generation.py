@@ -13,6 +13,13 @@ from python.helpers import files
 
 
 class ImageGeneration(Tool):
+    # Map legacy names to official model paths
+    MODEL_MAPPING: dict[str, str] = {
+        "seedance": "bytedance/seedream-v4",
+        "nanobanana": "google/gemini-2.5-flash-image/text-to-image",
+        "bytedance/seedream-v4": "bytedance/seedream-v4",
+        "google/gemini-2.5-flash-image/text-to-image": "google/gemini-2.5-flash-image/text-to-image",
+    }
     async def before_execution(self, **kwargs):
         await super().before_execution(**kwargs)
         try:
@@ -83,8 +90,17 @@ class ImageGeneration(Tool):
                 "Missing WaveSpeed API key. Add it in Settings > Image Generation or pass api_key."
             )
 
-        payload: dict[str, Any] = {
-            "model": model,
+        # Map model and construct task-based API
+        mapped_model = self.MODEL_MAPPING.get(model, model)
+        submit_url = f"https://api.wavespeed.ai/api/v3/{mapped_model}"
+        result_base = "https://api.wavespeed.ai/api/v3/predictions"
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+        }
+
+        submit_payload: dict[str, Any] = {
             "prompt": prompt,
             "width": width,
             "height": height,
@@ -92,57 +108,102 @@ class ImageGeneration(Tool):
             "batch_size": batch_size,
         }
         if negative_prompt:
-            payload["negative_prompt"] = negative_prompt
+            submit_payload["negative_prompt"] = negative_prompt
 
-        url = "https://api.wavespeed.ai/v1/generate"
-        headers = {
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json",
-            "Accept": "application/json",
-        }
-
+        # Submit task
         try:
-            async with httpx.AsyncClient(timeout=120) as client:
-                resp = await client.post(url, headers=headers, json=payload)
+            async with httpx.AsyncClient(timeout=30) as client:
+                resp = await client.post(submit_url, headers=headers, json=submit_payload)
                 status = resp.status_code
                 if status == 401:
-                    raise RepairableException(
-                        "WaveSpeed API error: 401 Unauthorized. Invalid API key."
-                    )
+                    raise RepairableException("WaveSpeed API error: 401 Unauthorized. Invalid API key.")
+                if status == 404:
+                    raise RepairableException("WaveSpeed API error: 404 Not Found. Invalid model or endpoint.")
                 if status == 429:
-                    raise RepairableException(
-                        "WaveSpeed API error: 429 Rate limit exceeded. Try again later."
-                    )
+                    raise RepairableException("WaveSpeed API error: 429 Rate limit exceeded. Try again later.")
                 if status >= 500:
-                    raise RepairableException(
-                        f"WaveSpeed API error: {status} Server error."
-                    )
+                    raise RepairableException(f"WaveSpeed API error: {status} Server error.")
                 if status != 200:
-                    # include short body
                     text = resp.text[:500]
-                    raise RepairableException(
-                        f"WaveSpeed API error: {status} - {text}"
-                    )
-
-                data = resp.json()
+                    raise RepairableException(f"WaveSpeed API error: {status} - {text}")
+                submit_data = resp.json()
         except RepairableException:
             raise
         except Exception as e:
-            raise RepairableException(f"WaveSpeed API request failed: {type(e).__name__}: {e}")
+            raise RepairableException(f"WaveSpeed API submit failed: {type(e).__name__}: {e}")
 
-        # Parse images; support either list of base64 strings or list of dicts with url/base64
-        images: List[str] = []
-        raw_images = data.get("images") if isinstance(data, dict) else None
-        if isinstance(raw_images, list):
-            for i, item in enumerate(raw_images):
-                if isinstance(item, dict):
-                    if item.get("base64"):
-                        images.append(item["base64"])  # base64
-                    elif item.get("url"):
-                        images.append({"url": item["url"]})  # type: ignore
-                elif isinstance(item, str):
-                    # assume base64 string
-                    images.append(item)
+        request_id = (submit_data or {}).get("requestId") or (submit_data or {}).get("id")
+        if not request_id:
+            raise RepairableException("WaveSpeed API error: Missing requestId in submit response.")
+        try:
+            PrintStyle.info(f"WaveSpeed task submitted. requestId={request_id}")
+        except Exception:
+            pass
+
+        # Poll for result
+        poll_url = f"{result_base}/{request_id}/result"
+        deadline = time.time() + 120  # 120s timeout
+        images_payload: Any = None
+        last_status = ""
+        try:
+            async with httpx.AsyncClient(timeout=30) as client:
+                while time.time() < deadline:
+                    r = await client.get(poll_url, headers=headers)
+                    if r.status_code == 404:
+                        raise RepairableException("WaveSpeed API error: 404 result not found. Check requestId.")
+                    if r.status_code == 401:
+                        raise RepairableException("WaveSpeed API error: 401 Unauthorized during polling.")
+                    if 400 <= r.status_code < 500:
+                        # Any other client error should not be retried; report immediately
+                        short = r.text[:500]
+                        raise RepairableException(
+                            f"WaveSpeed API error: {r.status_code} Client error during polling - {short}"
+                        )
+                    if r.status_code >= 500:
+                        # transient server error: wait and retry
+                        await asyncio.sleep(3)
+                        continue
+                    # treat 200 as valid payload regardless of status content
+                    data = r.json()
+                    status = str(data.get("status", "")).lower()
+                    last_status = status or last_status
+                    if status in ("completed", "succeeded", "success", "done"):
+                        images_payload = data
+                        break
+                    if status in ("failed", "error"):
+                        err = data.get("error") or data.get("message") or "Generation failed"
+                        raise RepairableException(f"WaveSpeed task failed: {err}")
+                    # not done yet
+                    try:
+                        PrintStyle().print("Waiting for WaveSpeed generation...")
+                    except Exception:
+                        pass
+                    await asyncio.sleep(3)
+        except RepairableException:
+            raise
+        except Exception as e:
+            raise RepairableException(f"WaveSpeed polling failed: {type(e).__name__}: {e}")
+
+        if images_payload is None:
+            raise RepairableException(f"WaveSpeed generation timeout (last status: {last_status or 'unknown'}).")
+
+        # Extract images from v3 payload structure
+        images: List[Any] = []
+        # Try common keys: data.images, images, output
+        if isinstance(images_payload, dict):
+            maybe_images = (
+                (images_payload.get("data") or {}).get("images")
+                if isinstance(images_payload.get("data"), dict)
+                else None
+            ) or images_payload.get("images") or images_payload.get("output")
+            if isinstance(maybe_images, list):
+                images = maybe_images
+
+        # Fail fast if no images are returned by the provider
+        if not images:
+            raise RepairableException(
+                f"WaveSpeed API returned no images for completed task (model: {mapped_model})."
+            )
 
         saved_paths: List[str] = []
         ts = int(time.time())
@@ -181,7 +242,7 @@ class ImageGeneration(Tool):
         additional = {
             "images": saved_paths,
             "meta": {
-                "model": model,
+                "model": mapped_model,
                 "width": width,
                 "height": height,
                 "steps": steps,

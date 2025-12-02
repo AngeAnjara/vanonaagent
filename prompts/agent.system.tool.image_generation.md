@@ -1,8 +1,8 @@
 # Tool: image_generation
 
-Description (FR): Génère des images via l’API WaveSpeed (modèles SeeDance et NanoBanana) pour des visuels marketing, maquettes et bannières. Le tool lit sa configuration depuis Settings > Image Generation et accepte des overrides dans `tool_args`.
+Description (FR): Génère des images via l’API WaveSpeed (API v3 asynchrone, task-based) avec les modèles officiels Seedream V4 et Gemini 2.5 Flash. Le tool lit sa configuration depuis Settings > Image Generation et accepte des overrides dans `tool_args`.
 
-Description (EN): Generates images using WaveSpeed API (SeeDance and NanoBanana models) for marketing visuals, mockups and banners. Reads defaults from Settings > Image Generation and supports per-call overrides in `tool_args`.
+Description (EN): Generates images using WaveSpeed API v3 (asynchronous, task-based) with official models Seedream V4 and Gemini 2.5 Flash. Reads defaults from Settings > Image Generation and supports per-call overrides in `tool_args`.
 
 Arguments:
 - prompt (string, required): Detailed description in English for best results.
@@ -11,11 +11,12 @@ Arguments:
 - height (int, optional): Pixels. Default from settings. Range typically 512–2048.
 - steps (int, optional): 10–100. Higher = better quality but slower. Default from settings.
 - batch_size (int, optional): 1–5. Default from settings. Clamped to max 5.
-- model (string, optional): Overrides default settings ("seedance" | "nanobanana").
+- model (string, optional): Overrides default settings ("bytedance/seedream-v4" | "google/gemini-2.5-flash-image/text-to-image"). Legacy names "seedance" and "nanobanana" are auto-mapped for compatibility.
 
 Behavior:
-- Uses WaveSpeed endpoint POST https://api.wavespeed.ai/v1/generate with Authorization: Bearer <api_key>.
-- Returns local paths to saved images and metadata.
+- Submits a task to POST https://api.wavespeed.ai/api/v3/{model_path} (Authorization: Bearer <api_key>).
+- Polls GET https://api.wavespeed.ai/api/v3/predictions/{requestId}/result until completion (typically 10–60 seconds).
+- On success, downloads images and returns local paths + metadata.
 
 Examples:
 
@@ -70,6 +71,7 @@ Bonnes pratiques / Best practices:
 - Utiliser negative_prompt pour éviter les défauts (blurry, watermark, distorted text).
 - Dimensions typiques: Instagram 1080x1080; Facebook 1200x628; Twitter/X 1024x512.
 - steps: 30 par défaut; 40–50 pour qualité finale; baisser pour itérations rapides.
+- La génération peut prendre 10–60 secondes selon le modèle et les paramètres. L’agent attend automatiquement la complétion via polling.
 - batch_size: 5 pour variantes, 1–2 pour itérations rapides.
 
 Erreurs courantes / Common errors:
@@ -78,3 +80,5 @@ Erreurs courantes / Common errors:
 - 401 Unauthorized → Clé API invalide.
 - 429 Rate limit exceeded → Attendre avant de réessayer.
 - 5xx Server error → Réessaie plus tard ou réduire batch/steps.
+- 404 Not Found → Modèle invalide ou endpoint incorrect. Vérifiez le nom du modèle.
+- Timeout → La génération a pris trop de temps. Réduisez steps/batch_size ou réessayez.

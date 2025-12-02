@@ -30,7 +30,7 @@ class HtmlToPresentation(Tool):
         output_name = (kwargs.get("output_name") or self.args.get("output_name") or f"presentation_{int(time.time())}").strip()
 
         out_dir = files.get_abs_path("outputs", "presentations")
-        files.ensure_directory(out_dir)
+        os.makedirs(out_dir, exist_ok=True)
 
         if output_format == "pptx":
             try:

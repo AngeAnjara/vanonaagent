@@ -3,7 +3,7 @@
 <div x-data x-init="$store.imageGenStore?.init && $store.imageGenStore.init()" x-if="$store.imageGenStore" class="settings-section">
   <div class="section-header">
     <h2 class="section-title">Image Generation (WaveSpeed)</h2>
-    <p class="section-desc">Configure WaveSpeed API for AI-powered image generation (SeeDance / NanoBanana).</p>
+    <p class="section-desc">Configure WaveSpeed API for AI-powered image generation (Seedream V4 / Gemini 2.5 Flash).</p>
   </div>
 
   <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -25,8 +25,8 @@
     <div class="field">
       <label class="field-label">Model</label>
       <select x-model="$store.imageGenStore.model" class="input">
-        <option value="seedance">SeeDance (High Quality)</option>
-        <option value="nanobanana">NanoBanana (Fast)</option>
+        <option value="bytedance/seedream-v4">ByteDance Seedream V4 (High Quality)</option>
+        <option value="google/gemini-2.5-flash-image/text-to-image">Google Gemini 2.5 Flash (Fast)</option>
       </select>
       <p class="field-help">Choose the default model.</p>
     </div>

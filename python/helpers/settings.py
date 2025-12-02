@@ -696,8 +696,8 @@ def convert_out(settings: Settings) -> SettingsOutput:
             "type": "select",
             "value": settings["image_gen_model"],
             "options": [
-                {"value": "seedance", "label": "SeeDance (High quality)"},
-                {"value": "nanobanana", "label": "NanoBanana (Fast)"},
+                {"value": "bytedance/seedream-v4", "label": "ByteDance Seedream V4 (High Quality)"},
+                {"value": "google/gemini-2.5-flash-image/text-to-image", "label": "Google Gemini 2.5 Flash (Fast)"},
             ],
         }
     )
@@ -1574,6 +1574,14 @@ def convert_in(settings: dict) -> Settings:
                         current["api_keys"][field["id"]] = field["value"]
                     else:
                         current[field["id"]] = field["value"]
+    # Migrate legacy WaveSpeed model names
+    try:
+        if current.get("image_gen_model") == "seedance":
+            current["image_gen_model"] = "bytedance/seedream-v4"
+        if current.get("image_gen_model") == "nanobanana":
+            current["image_gen_model"] = "google/gemini-2.5-flash-image/text-to-image"
+    except Exception:
+        pass
     return current
 
 def get_settings() -> Settings:
@@ -1782,7 +1790,7 @@ def get_default_settings() -> Settings:
         odoo_password="",
         image_gen_enabled=False,
         image_gen_api_key="",
-        image_gen_model="seedance",
+        image_gen_model="bytedance/seedream-v4",
         image_gen_default_width=1024,
         image_gen_default_height=1024,
         image_gen_default_steps=30,

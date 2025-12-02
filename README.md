@@ -364,13 +364,13 @@ The agent will use `odoo_call` to query `sale.order` with a date filter and pres
 
 ## 🎨 Image Generation (WaveSpeed)
 
-Agent Zero can generate professional images via the WaveSpeed API using models like SeeDance (high quality) and NanoBanana (fast). Use it to produce marketing visuals, social posts, banners, and mockups. The integration is available through the `image_generation` tool and a dedicated Settings panel.
+Agent Zero can generate professional images via the WaveSpeed API v3 (task-based) using official models like ByteDance Seedream V4 (high quality) and Google Gemini 2.5 Flash Image (fast). Use it to produce marketing visuals, social posts, banners, and mockups. The integration is available through the `image_generation` tool and a dedicated Settings panel.
 
 ### Setup
 1. Obtain a WaveSpeed API key from https://wavespeed.ai
 2. Open Settings > Image Generation
 3. Enable the integration and paste your API key
-4. Choose a default model (SeeDance or NanoBanana) and defaults for width/height/steps/batch size
+4. Choose a default model (ByteDance Seedream V4 or Google Gemini 2.5 Flash Image) and defaults for width/height/steps/batch size
 5. Click “Test Connection” to verify
 
 You can also configure via `.env` using `IMAGE_GEN_API_KEY`.
@@ -382,7 +382,7 @@ Ask the agent in natural language, for example:
 - "Create a professional business card mockup"
 - "Design a web banner 1200x628 in blue and white"
 
-The agent will call the `image_generation` tool, contact WaveSpeed, and save the images to the work directory, returning local file paths.
+The agent will call the `image_generation` tool, submit a task to WaveSpeed’s API v3, poll for completion, and save the images to the work directory, returning local file paths.
 
 ## PowerPoint & PDF Generation
 

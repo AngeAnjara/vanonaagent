@@ -3,7 +3,7 @@ import { createStore } from "/js/AlpineStore.js";
 const model = {
   enabled: false,
   apiKey: "",
-  model: "seedance",
+  model: "bytedance/seedream-v4",
   width: 1024,
   height: 1024,
   steps: 30,
@@ -36,7 +36,10 @@ const model = {
       const getField = (id) => section.fields.find((f) => f.id === id) || { value: "" };
       this.enabled = !!getField("image_gen_enabled").value;
       this.apiKey = getField("image_gen_api_key").value || "";
-      this.model = getField("image_gen_model").value || "seedance";
+      this.model = getField("image_gen_model").value || "bytedance/seedream-v4";
+      // migrate legacy names
+      if (this.model === "seedance") this.model = "bytedance/seedream-v4";
+      if (this.model === "nanobanana") this.model = "google/gemini-2.5-flash-image/text-to-image";
       this.width = Number(getField("image_gen_default_width").value || 1024);
       this.height = Number(getField("image_gen_default_height").value || 1024);
       this.steps = Number(getField("image_gen_default_steps").value || 30);
