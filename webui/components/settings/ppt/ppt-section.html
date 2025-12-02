@@ -1,0 +1,73 @@
+<script type="module" src="/components/settings/ppt/ppt-store.js"></script>
+
+<div x-data x-init="$store.pptStore?.init && $store.pptStore.init()" x-if="$store.pptStore" class="settings-section">
+  <div class="section-header">
+    <h2 class="section-title">PowerPoint & PDF Generation</h2>
+    <p class="section-desc">Configure HTML-to-presentation conversion with design and chart capabilities.</p>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="field">
+      <label class="field-label">Enable</label>
+      <label class="switch">
+        <input type="checkbox" x-model="$store.pptStore.enabled" />
+        <span class="slider round"></span>
+      </label>
+      <p class="field-help">Activate PowerPoint/PDF generation.</p>
+    </div>
+
+    <div class="field">
+      <label class="field-label">Default Format</label>
+      <select x-model="$store.pptStore.defaultFormat" class="input">
+        <option value="pptx">PowerPoint (PPTX)</option>
+        <option value="pdf">PDF</option>
+      </select>
+      <p class="field-help">Default output format.</p>
+    </div>
+
+    <div class="field">
+      <label class="field-label">Default Theme</label>
+      <select x-model="$store.pptStore.defaultTheme" class="input">
+        <option value="modern">Modern</option>
+        <option value="corporate">Corporate</option>
+        <option value="creative">Creative</option>
+        <option value="minimal">Minimal</option>
+      </select>
+      <p class="field-help">Visual theme for presentations.</p>
+    </div>
+
+    <div class="field">
+      <label class="field-label">Chart Library</label>
+      <select x-model="$store.pptStore.chartLibrary" class="input">
+        <option value="chartjs">Chart.js</option>
+        <option value="plotly">Plotly</option>
+        <option value="matplotlib">Matplotlib</option>
+      </select>
+      <p class="field-help">Library for generating charts.</p>
+    </div>
+
+    <div class="field col-span-1 md:col-span-2">
+      <label class="field-label">Enable HTML Preview</label>
+      <label class="switch">
+        <input type="checkbox" x-model="$store.pptStore.enablePreview" />
+        <span class="slider round"></span>
+      </label>
+      <p class="field-help">Preview HTML before conversion.</p>
+    </div>
+  </div>
+
+  <div class="actions mt-4 flex gap-3">
+    <button class="btn" :disabled="$store.pptStore.isTesting" @click="$store.pptStore.testConnection()">
+      <span class="material-icons">play_circle</span>
+      <span>Test Libraries</span>
+    </button>
+    <button class="btn-primary" :disabled="$store.pptStore.isSaving" @click="$store.pptStore.saveSettings()">
+      <span class="material-icons">save</span>
+      <span>Save Settings</span>
+    </button>
+  </div>
+
+  <div class="status mt-3" :class="{'status-success': $store.pptStore.statusType==='success', 'status-error': $store.pptStore.statusType==='error', 'status-info': $store.pptStore.statusType==='info'}">
+    <span x-text="$store.pptStore.statusMessage"></span>
+  </div>
+</div>

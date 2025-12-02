@@ -92,6 +92,11 @@ def initialize_agent():
         image_gen_default_height=current_settings["image_gen_default_height"],
         image_gen_default_steps=current_settings["image_gen_default_steps"],
         image_gen_batch_size=current_settings["image_gen_batch_size"],
+        ppt_enabled=current_settings["ppt_enabled"],
+        ppt_default_format=current_settings["ppt_default_format"],
+        ppt_default_theme=current_settings["ppt_default_theme"],
+        ppt_chart_library=current_settings["ppt_chart_library"],
+        ppt_enable_preview=current_settings["ppt_enable_preview"],
         # code_exec params get initialized in _set_runtime_config
         # additional = {},
     )

@@ -401,6 +401,10 @@ document.addEventListener('alpine:init', function () {
                     this.filteredSections = this.settingsData.sections?.filter(section =>
                         section.tab === 'backup'
                     ) || [];
+                } else if (this.activeTab === 'integrations') {
+                    this.filteredSections = this.settingsData.sections?.filter(section =>
+                        section.tab === 'integrations'
+                    ) || [];
                 } else {
                     // For any other tab, show nothing since those tabs have custom UI
                     this.filteredSections = [];

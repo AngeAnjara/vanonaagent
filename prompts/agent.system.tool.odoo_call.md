@@ -114,6 +114,105 @@ Vous pouvez également demander à l'outil de retourner une liste de modèles m�
     - `[["account_id.account_type", "in", ["asset_receivable", "liability_payable"]], ["reconciled", "=", false]]`.
   - Grouper par `partner_id` pour obtenir les soldes par client/fournisseur.
 
+### Agrégation avec read_group
+
+La méthode `read_group` nécessite obligatoirement le paramètre `groupby` dans `options`. Utilisez-la pour des agrégations groupées (sommes, moyennes, comptages).
+
+Exemple 1: Ventes par client
+```json
+{
+  "model": "sale.order",
+  "method": "read_group",
+  "domain": [["state", "in", ["sale", "done"]]],
+  "fields": ["partner_id", "amount_total"],
+  "options": {
+    "groupby": ["partner_id"],
+    "orderby": "amount_total desc",
+    "limit": 10
+  }
+}
+```
+
+Exemple 2: Factures par mois
+```json
+{
+  "model": "account.move",
+  "method": "read_group",
+  "domain": [["move_type", "=", "out_invoice"], ["state", "=", "posted"]],
+  "fields": ["invoice_date", "amount_total"],
+  "options": {
+    "groupby": ["invoice_date:month"],
+    "orderby": "invoice_date desc"
+  }
+}
+```
+
+Règles importantes:
+- `groupby` doit être une liste (même pour un seul champ)
+- Pour grouper par date: utilisez `:year`, `:quarter`, `:month`, `:week`, `:day` (ex: `"invoice_date:month"`)
+- Les champs dans `fields` doivent être agrégables (numériques) ou inclus dans `groupby`
+- Utilisez `orderby` (pas `order`) pour trier les résultats groupés
+- `lazy=False` dans `options` force l'expansion complète des groupes
+
+Erreur courante à éviter:
+❌ `{"method": "read_group", "options": {"limit": 10}}` → Manque `groupby`
+✅ `{"method": "read_group", "options": {"groupby": ["partner_id"], "limit": 10}}`
+
+### Requêtes financières (situation comptable)
+           
+Pour obtenir des soldes de comptes ou analyser la situation financière, ne pas utiliser `account.account` directement (le champ `balance` n'existe pas en tant que champ stocké). Utilisez plutôt:
+
+Option 1: Agrégation via account.move.line (recommandé pour soldes réels)
+```json
+{
+  "model": "account.move.line",
+  "method": "read_group",
+  "domain": [
+    ["move_id.state", "=", "posted"],
+    ["account_id.code", "=like", "101%"]
+  ],
+  "fields": ["account_id", "debit", "credit"],
+  "options": {
+    "groupby": ["account_id"],
+    "orderby": "account_id"
+  }
+}
+```
+Calculez ensuite le solde: `balance = sum(debit) - sum(credit)` pour chaque compte.
+
+Option 2: Utiliser le champ calculé current_balance
+```json
+{
+  "model": "account.account",
+  "method": "search_read",
+  "domain": [["code", "=like", "101%"]],
+  "fields": ["code", "name", "account_type", "current_balance"],
+  "options": {"limit": 50}
+}
+```
+⚠️ `current_balance` est un champ non stocké (computed), donc plus lent sur de gros volumes.
+
+Option 3: Factures et paiements (trésorerie)
+Pour analyser les flux de trésorerie:
+```json
+{
+  "model": "account.move",
+  "method": "search_read",
+  "domain": [
+    ["move_type", "in", ["out_invoice", "out_refund"]],
+    ["state", "=", "posted"],
+    ["invoice_date", ">=", "2024-01-01"]
+  ],
+  "fields": ["name", "partner_id", "invoice_date", "amount_total", "amount_residual"],
+  "options": {"order": "invoice_date desc", "limit": 100}
+}
+```
+
+Champs clés:
+- `amount_total`: Montant total TTC
+- `amount_residual`: Reste à payer (0 si payé)
+- `payment_state`: État du paiement (`paid`, `partial`, `not_paid`)
+
 #### ⚠️ Champs obsolètes et leurs remplacements (Odoo 16+)
 
 | Modèle           | Ancien champ (≤15) | Nouveau champ (16+) | Alternative recommandée                                      |

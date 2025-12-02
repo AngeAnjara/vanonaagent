@@ -554,6 +554,8 @@
                             <div class="settings-tabs">
                                 <div class="settings-tab" :class="{'active': activeTab === 'agent'}"
                                     @click="switchTab('agent')" title="Agent Settings">Agent Settings</div>
+                                <div class="settings-tab" :class="{'active': activeTab === 'integrations'}"
+                                    @click="switchTab('integrations')" title="Integrations">Integrations</div>
                                 <div class="settings-tab" :class="{'active': activeTab === 'external'}"
                                     @click="switchTab('external')" title="External Services">External Services</div>
                                 <div class="settings-tab" :class="{'active': activeTab === 'mcp'}"
@@ -689,6 +691,16 @@
                             <!-- Tunnel section content - only visible in External Services tab -->
                             <div id="section-tunnel" class="section" x-show="activeTab === 'external'">
                                 <x-component path="settings/tunnel/tunnel-section.html" />
+                            </div>
+
+                            <!-- Odoo Integration section - only visible in Integrations tab -->
+                            <div id="section-odoo" class="section" x-show="activeTab === 'integrations'">
+                                <x-component path="settings/odoo/odoo-section.html" />
+                            </div>
+
+                            <!-- Image Generation section - only visible in Integrations tab -->
+                            <div id="section-image-gen" class="section" x-show="activeTab === 'integrations'">
+                                <x-component path="settings/image-gen/image-gen-section.html" />
                             </div>
                         </div>
 

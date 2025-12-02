@@ -384,6 +384,51 @@ Ask the agent in natural language, for example:
 
 The agent will call the `image_generation` tool, contact WaveSpeed, and save the images to the work directory, returning local file paths.
 
+## PowerPoint & PDF Generation
+
+Agent Zero can design and generate professional presentations in PowerPoint (PPTX) or PDF format using HTML/CSS as an intermediate step.
+
+### Features
+- **HTML Design**: AI generates HTML/CSS with themes, colors, and charts
+- **Chart Support**: Integrates Chart.js, Plotly, or Matplotlib for data visualization
+- **Dual Output**: Convert to PowerPoint (PPTX) or PDF
+- **Preview**: View HTML before conversion for iterative improvements
+- **Themes**: Modern, Corporate, Creative, Minimal
+
+### Setup
+1. Install required libraries:
+   ```bash
+   pip install python-pptx weasyprint beautifulsoup4
+   ```
+2. Enable in Settings > PowerPoint & PDF Generation
+3. Configure default format, theme, and chart library
+4. Test libraries with the "Test Libraries" button
+
+### Usage
+Ask the agent to create a presentation:
+```
+"Create a 5-slide PowerPoint about Q4 sales with a bar chart showing revenue by region. Use modern theme with blue colors."
+```
+
+The agent will:
+1. Use `html_design` to generate HTML/CSS with your specifications
+2. Optionally show you the HTML preview
+3. Use `html_to_presentation` to convert to PPTX or PDF
+4. Save the file to `outputs/presentations/`
+
+You can request improvements:
+```
+"Make the title slide more colorful and add a pie chart on slide 3."
+```
+
+### Dependencies
+- `python-pptx`: PowerPoint generation
+- `weasyprint` or `pdfkit`: PDF generation
+- `beautifulsoup4`: HTML parsing
+- `playwright`: Chart screenshot capture (already included)
+
+Tip: For multi-slide PPTX, structure your HTML with one container per slide using the CSS class `.slide`.
+
 ## 🤝 Community and Support
 
 - [Join our Discord](https://discord.gg/B8KZKNsPpj) for live discussions or [visit our Skool Community](https://www.skool.com/agent-zero).

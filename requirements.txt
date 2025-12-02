@@ -41,3 +41,8 @@ crontab==1.0.1
 pathspec>=0.12.1
 psutil>=7.0.0
 soundfile==0.13.1
+
+# PowerPoint & PDF generation
+python-pptx>=0.6.21
+weasyprint>=60.0
+beautifulsoup4>=4.12.0

@@ -259,6 +259,13 @@ class AgentConfig:
     image_gen_default_steps: int = 30
     image_gen_batch_size: int = 5
 
+    # PowerPoint/PDF generation config
+    ppt_enabled: bool = False
+    ppt_default_format: str = "pptx"
+    ppt_default_theme: str = "modern"
+    ppt_chart_library: str = "chartjs"
+    ppt_enable_preview: bool = True
+
 
 @dataclass
 class UserMessage:

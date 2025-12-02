@@ -127,6 +127,13 @@ class Settings(TypedDict):
     image_gen_default_steps: int
     image_gen_batch_size: int
 
+    # PowerPoint/PDF generation
+    ppt_enabled: bool
+    ppt_default_format: Literal['pptx', 'pdf']
+    ppt_default_theme: str
+    ppt_chart_library: str
+    ppt_enable_preview: bool
+
 class PartialSettings(Settings, total=False):
     pass
 
@@ -752,6 +759,82 @@ def convert_out(settings: Settings) -> SettingsOutput:
         "title": "Image Generation (WaveSpeed)",
         "description": "Configure WaveSpeed image generation for marketing visuals and design assets.",
         "fields": image_gen_fields,
+        "tab": "integrations",
+    }
+
+    # PowerPoint/PDF generation section
+    ppt_fields: list[SettingsField] = []
+
+    ppt_fields.append(
+        {
+            "id": "ppt_enabled",
+            "title": "Enable PowerPoint Generation",
+            "description": "Activate PowerPoint/PDF generation tools to convert designed HTML into presentations.",
+            "type": "switch",
+            "value": settings["ppt_enabled"],
+        }
+    )
+
+    ppt_fields.append(
+        {
+            "id": "ppt_default_format",
+            "title": "Default Output Format",
+            "description": "Choose the default output format for generated presentations.",
+            "type": "select",
+            "value": settings["ppt_default_format"],
+            "options": [
+                {"value": "pptx", "label": "PowerPoint (PPTX)"},
+                {"value": "pdf", "label": "PDF"},
+            ],
+        }
+    )
+
+    ppt_fields.append(
+        {
+            "id": "ppt_default_theme",
+            "title": "Default Theme",
+            "description": "Visual theme for presentations.",
+            "type": "select",
+            "value": settings["ppt_default_theme"],
+            "options": [
+                {"value": "modern", "label": "Modern"},
+                {"value": "corporate", "label": "Corporate"},
+                {"value": "creative", "label": "Creative"},
+                {"value": "minimal", "label": "Minimal"},
+            ],
+        }
+    )
+
+    ppt_fields.append(
+        {
+            "id": "ppt_chart_library",
+            "title": "Chart Library",
+            "description": "Library for generating charts in designed HTML.",
+            "type": "select",
+            "value": settings["ppt_chart_library"],
+            "options": [
+                {"value": "chartjs", "label": "Chart.js"},
+                {"value": "plotly", "label": "Plotly"},
+                {"value": "matplotlib", "label": "Matplotlib"},
+            ],
+        }
+    )
+
+    ppt_fields.append(
+        {
+            "id": "ppt_enable_preview",
+            "title": "Enable HTML Preview",
+            "description": "Allow previewing generated HTML before conversion.",
+            "type": "switch",
+            "value": settings["ppt_enable_preview"],
+        }
+    )
+
+    ppt_section: SettingsSection = {
+        "id": "ppt",
+        "title": "PowerPoint & PDF Generation",
+        "description": "Configure HTML-to-presentation conversion with design and chart capabilities.",
+        "fields": ppt_fields,
         "tab": "integrations",
     }
 
@@ -1443,6 +1526,7 @@ def convert_out(settings: Settings) -> SettingsOutput:
             speech_section,
             odoo_section,
             image_gen_section,
+            ppt_section,
             api_keys_section,
             litellm_section,
             secrets_section,
@@ -1703,6 +1787,11 @@ def get_default_settings() -> Settings:
         image_gen_default_height=1024,
         image_gen_default_steps=30,
         image_gen_batch_size=5,
+        ppt_enabled=False,
+        ppt_default_format="pptx",
+        ppt_default_theme="modern",
+        ppt_chart_library="chartjs",
+        ppt_enable_preview=True,
     )
 
 
