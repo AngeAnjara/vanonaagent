@@ -52,5 +52,4 @@ instruments/**
 **/*.pyo
 **/*.pyd
 
-# Environment files anywhere
-*.env
+

@@ -233,6 +233,27 @@
   gap: 1rem;
 }
 
+/* Modal Actions Container (for buttons in modals) */
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--color-border);
+}
+
+@media (max-width: 768px) {
+  .modal-actions {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .modal-actions .btn {
+    width: 100%;
+  }
+}
+
 /* Section Styles */
 .section {
   margin-bottom: 2rem;
