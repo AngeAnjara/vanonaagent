@@ -14,7 +14,15 @@ LOG_SIZE = 1000
 CHAT_FILE_NAME = "chat.json"
 
 
-def get_chat_folder_path(ctxid: str):
+def get_user_chats_folder(username: str):
+    return files.get_abs_path(CHATS_FOLDER, username)
+
+
+def get_chat_folder_path_for_user(ctxid: str, username: str):
+    return files.get_abs_path(get_user_chats_folder(username), ctxid)
+
+
+def get_chat_folder_path(ctxid: str, username: str | None = None):
     """
     Get the folder path for any context (chat or task).
 
@@ -24,18 +32,27 @@ def get_chat_folder_path(ctxid: str):
     Returns:
         The absolute path to the context folder
     """
+    if username:
+        return get_chat_folder_path_for_user(ctxid, username)
     return files.get_abs_path(CHATS_FOLDER, ctxid)
 
-def get_chat_msg_files_folder(ctxid: str):
-    return files.get_abs_path(get_chat_folder_path(ctxid), "messages")
+def get_chat_msg_files_folder(ctxid: str, username: str | None = None):
+    return files.get_abs_path(get_chat_folder_path(ctxid, username), "messages")
 
-def save_tmp_chat(context: AgentContext):
+def save_tmp_chat(context: AgentContext, username: str | None = None):
     """Save context to the chats folder"""
     # Skip saving BACKGROUND contexts as they should be ephemeral
     if context.type == AgentContextType.BACKGROUND:
         return
 
-    path = _get_chat_file_path(context.id)
+    # Ensure metadata and owner
+    if not hasattr(context, "metadata"):
+        context.metadata = {}
+    if username:
+        context.metadata["owner"] = username
+    owner = context.metadata.get("owner") if hasattr(context, "metadata") else None
+
+    path = _get_chat_file_path(context.id, owner)
     files.make_dirs(path)
     data = _serialize_context(context)
     js = _safe_json_serialize(data, ensure_ascii=False)
@@ -48,30 +65,51 @@ def save_tmp_chats():
         # Skip BACKGROUND contexts as they should be ephemeral
         if context.type == AgentContextType.BACKGROUND:
             continue
-        save_tmp_chat(context)
+        owner = getattr(context, "metadata", {}).get("owner", None) if hasattr(context, "metadata") else None
+        save_tmp_chat(context, owner)
 
 
-def load_tmp_chats():
-    """Load all contexts from the chats folder"""
+def load_tmp_chats(username: str | None = None):
+    """Load contexts from the chats folder; if username is provided, only that user's chats, else all."""
     _convert_v080_chats()
-    folders = files.list_files(CHATS_FOLDER, "*")
-    json_files = []
-    for folder_name in folders:
-        json_files.append(_get_chat_file_path(folder_name))
+    _migrate_legacy_chats()
 
-    ctxids = []
+    json_files: list[str] = []
+    if username:
+        user_dir = get_user_chats_folder(username)
+        folders = files.list_files(user_dir, "*")
+        for folder_name in folders:
+            json_files.append(_get_chat_file_path(folder_name, username))
+    else:
+        # admin/global: iterate all user subfolders
+        users = files.list_files(CHATS_FOLDER, "*")
+        for user in users:
+            user_dir = get_user_chats_folder(user)
+            folders = files.list_files(user_dir, "*")
+            for folder_name in folders:
+                json_files.append(_get_chat_file_path(folder_name, user))
+
+    ctxids: list[str] = []
     for file in json_files:
         try:
             js = files.read_file(file)
             data = json.loads(js)
             ctx = _deserialize_context(data)
+            # restore owner metadata from file if present
+            owner = data.get("metadata", {}).get("owner") if isinstance(data.get("metadata"), dict) else None
+            if owner:
+                if not hasattr(ctx, "metadata"):
+                    ctx.metadata = {}
+                ctx.metadata["owner"] = owner
             ctxids.append(ctx.id)
         except Exception as e:
             print(f"Error loading chat {file}: {e}")
     return ctxids
 
 
-def _get_chat_file_path(ctxid: str):
+def _get_chat_file_path(ctxid: str, username: str | None = None):
+    if username:
+        return files.get_abs_path(get_chat_folder_path_for_user(ctxid, username), CHAT_FILE_NAME)
     return files.get_abs_path(CHATS_FOLDER, ctxid, CHAT_FILE_NAME)
 
 
@@ -84,7 +122,25 @@ def _convert_v080_chats():
         files.move_file(path, new)
 
 
-def load_json_chats(jsons: list[str]):
+def _migrate_legacy_chats():
+    """Migrate chats stored directly under tmp/chats/<ctxid> to tmp/chats/admin/<ctxid> once."""
+    # detect folders that contain chat.json directly
+    entries = files.list_files(CHATS_FOLDER, "*")
+    for entry in entries:
+        # If entry contains a chat.json directly, move into admin namespace
+        legacy_path = files.get_abs_path(CHATS_FOLDER, entry, CHAT_FILE_NAME)
+        if files.file_exists(legacy_path):
+            new_path = _get_chat_file_path(entry, "admin")
+            files.make_dirs(new_path)
+            files.move_file(legacy_path, new_path)
+            # remove old empty dir if exists
+            try:
+                files.delete_dir(files.get_abs_path(CHATS_FOLDER, entry))
+            except Exception:
+                pass
+
+
+def load_json_chats(jsons: list[str], username: str | None = None):
     """Load contexts from JSON strings"""
     ctxids = []
     for js in jsons:
@@ -92,6 +148,11 @@ def load_json_chats(jsons: list[str]):
         if "id" in data:
             del data["id"]  # remove id to get new
         ctx = _deserialize_context(data)
+        # set ownership
+        if not hasattr(ctx, "metadata"):
+            ctx.metadata = {}
+        if username:
+            ctx.metadata["owner"] = username
         ctxids.append(ctx.id)
     return ctxids
 
@@ -103,16 +164,37 @@ def export_json_chat(context: AgentContext):
     return js
 
 
-def remove_chat(ctxid):
-    """Remove a chat or task context"""
-    path = get_chat_folder_path(ctxid)
-    files.delete_dir(path)
+def remove_chat(ctxid: str):
+    """Remove a chat or task context across per-user folders and legacy root."""
+    # Delete from legacy global path if exists
+    legacy_path = get_chat_folder_path(ctxid)
+    files.delete_dir(legacy_path)
+
+    # Delete from any user subfolder
+    try:
+        users = files.list_files(CHATS_FOLDER, "*")
+        for user in users:
+            user_ctx_path = get_chat_folder_path_for_user(ctxid, user)
+            files.delete_dir(user_ctx_path)
+    except Exception:
+        # ignore scanning errors to be robust
+        pass
 
 
-def remove_msg_files(ctxid):
-    """Remove all message files for a chat or task context"""
-    path = get_chat_msg_files_folder(ctxid)
-    files.delete_dir(path)
+def remove_msg_files(ctxid: str):
+    """Remove all message files for a chat or task context across per-user folders and legacy root."""
+    # Legacy global messages folder
+    legacy_msgs = get_chat_msg_files_folder(ctxid)
+    files.delete_dir(legacy_msgs)
+
+    # Per-user messages folders
+    try:
+        users = files.list_files(CHATS_FOLDER, "*")
+        for user in users:
+            msgs_path = get_chat_msg_files_folder(ctxid, user)
+            files.delete_dir(msgs_path)
+    except Exception:
+        pass
 
 
 def _serialize_context(context: AgentContext):
@@ -123,7 +205,7 @@ def _serialize_context(context: AgentContext):
         agents.append(_serialize_agent(agent))
         agent = agent.data.get(Agent.DATA_NAME_SUBORDINATE, None)
 
-    return {
+    out = {
         "id": context.id,
         "name": context.name,
         "created_at": (
@@ -143,6 +225,10 @@ def _serialize_context(context: AgentContext):
         ),
         "log": _serialize_log(context.log),
     }
+    # include metadata if present
+    if hasattr(context, "metadata") and isinstance(context.metadata, dict):
+        out["metadata"] = {k: v for k, v in context.metadata.items() if isinstance(k, str)}
+    return out
 
 
 def _serialize_agent(agent: Agent):
@@ -202,6 +288,11 @@ def _deserialize_context(data):
 
     context.agent0 = agent0
     context.streaming_agent = streaming_agent
+
+    # restore metadata if present
+    md = data.get("metadata", {})
+    if isinstance(md, dict):
+        context.metadata = md
 
     return context
 

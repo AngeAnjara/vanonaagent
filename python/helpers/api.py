@@ -32,6 +32,10 @@ class ApiHandler:
         return True
 
     @classmethod
+    def requires_admin(cls) -> bool:
+        return False
+
+    @classmethod
     def get_methods(cls) -> list[str]:
         return ["POST"]
 

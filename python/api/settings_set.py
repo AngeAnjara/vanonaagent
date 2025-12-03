@@ -10,3 +10,7 @@ class SetSettings(ApiHandler):
         set = settings.convert_in(input)
         set = settings.set_settings(set)
         return {"settings": set}
+
+    @classmethod
+    def requires_admin(cls) -> bool:
+        return True

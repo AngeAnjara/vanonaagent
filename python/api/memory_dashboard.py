@@ -33,6 +33,10 @@ class MemoryDashboard(ApiHandler):
         except Exception as e:
             return {"success": False, "error": str(e), "memories": [], "total_count": 0}
 
+    @classmethod
+    def requires_admin(cls) -> bool:
+        return True
+
     async def _delete_memory(self, input: dict) -> dict:
         """Delete a memory by ID from the specified subdirectory."""
         try:

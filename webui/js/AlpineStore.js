@@ -45,3 +45,40 @@ export function createStore(name, initialState) {
 export function getStore(name) {
   return /** @type {T | undefined} */ (stores.get(name));
 }
+
+// Auth store for user identity and role-based UI toggles
+// Initialized when Alpine is ready
+document.addEventListener("alpine:init", async () => {
+  try {
+    const { callJsonApi } = await import("/js/api.js");
+    const initial = {
+      username: null,
+      role: null,
+      isAdmin: false,
+      isAuthenticated: false,
+      async loadCurrentUser() {
+        try {
+          const res = await callJsonApi('/current_user_get', {});
+          const u = res?.user || {};
+          this.setUser(u.username || null, u.role || null);
+        } catch (_e) {
+          // ignore
+        }
+      },
+      setUser(username, role) {
+        this.username = username;
+        this.role = role;
+        this.isAdmin = role === 'admin';
+        this.isAuthenticated = !!username;
+      },
+      logout() {
+        window.location.href = '/logout';
+      },
+    };
+    Alpine.store('auth', initial);
+    // Load current user on init
+    queueMicrotask(() => Alpine.store('auth')?.loadCurrentUser?.());
+  } catch (e) {
+    // no-op if api.js isn't available yet
+  }
+});

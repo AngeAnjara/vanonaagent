@@ -163,7 +163,7 @@
                     <button class="config-button" id="loadChats" @click="loadChats()">Load Chat</button>
                     <button class="config-button" id="loadChat" @click="saveChat()">Save Chat</button>
                     <button class="config-button" id="restart" @click="restart()">Restart</button>
-                    <button class="config-button" id="settings" @click="settingsModalProxy.openModal()"><svg
+                    <button class="config-button" id="settings" x-show="$store.auth?.isAdmin" @click="settingsModalProxy.openModal()"><svg
                             xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="-5.0 -17.0 110.0 135.0"
                             fill="currentColor" width="24" height="24">
                             <path
@@ -173,7 +173,7 @@
                                 d="m50.301 66.5c-9 0-16.398-7.3008-16.398-16.398 0-9.1016 7.3008-16.398 16.398-16.398 9.1016 0 16.398 7.3008 16.398 16.398 0 9.0977-7.3984 16.398-16.398 16.398zm0-25.5c-5 0-9.1016 4.1016-9.1016 9.1016s4.1016 9.1016 9.1016 9.1016 9.1016-4.1016 9.1016-9.1016c-0.003906-5-4.1016-9.1016-9.1016-9.1016z">
                             </path>
                         </svg>Settings</button>
-                    <button class="config-button" id="memory-dash"
+                    <button class="config-button" id="memory-dash" x-show="$store.auth?.isAdmin"
                         @click="openModal('settings/memory/memory-dashboard.html');">Memory</button>
 
 
@@ -276,6 +276,16 @@
             </div>
             <!--Sidebar lower elements-->
             <div class="left-panel-bottom">
+                <!-- User Info -->
+                <div class="user-info" x-data>
+                    <div style="display:flex; align-items:center; justify-content:space-between; gap:.5rem; padding:.25rem .5rem;">
+                        <div style="display:flex; flex-direction:column;">
+                            <span style="font-weight:600;" x-text="$store.auth?.username || 'Guest'"></span>
+                            <span :class="{'badge': true, 'badge-blue': $store.auth?.role==='admin', 'badge-gray': $store.auth?.role!=='admin'}" x-text="$store.auth?.role || ''"></span>
+                        </div>
+                        <button class="btn btn-cancel" @click="$store.auth?.logout?.()" x-show="$store.auth?.isAuthenticated">Déconnexion</button>
+                    </div>
+                </div>
                 <!-- Preferences -->
                 <div class="pref-section" x-data="{ prefOpen: true }">
                     <span>
@@ -552,20 +562,22 @@
                         <!-- Tab Navigation -->
                         <div class="settings-tabs-container">
                             <div class="settings-tabs">
-                                <div class="settings-tab" :class="{'active': activeTab === 'agent'}"
+                                <div class="settings-tab" x-show="$store.auth?.isAdmin" :class="{'active': activeTab === 'agent'}"
                                     @click="switchTab('agent')" title="Agent Settings">Agent Settings</div>
-                                <div class="settings-tab" :class="{'active': activeTab === 'integrations'}"
+                                <div class="settings-tab" x-show="$store.auth?.isAdmin" :class="{'active': activeTab === 'integrations'}"
                                     @click="switchTab('integrations')" title="Integrations">Integrations</div>
-                                <div class="settings-tab" :class="{'active': activeTab === 'external'}"
+                                <div class="settings-tab" x-show="$store.auth?.isAdmin" :class="{'active': activeTab === 'external'}"
                                     @click="switchTab('external')" title="External Services">External Services</div>
-                                <div class="settings-tab" :class="{'active': activeTab === 'mcp'}"
+                                <div class="settings-tab" x-show="$store.auth?.isAdmin" :class="{'active': activeTab === 'mcp'}"
                                     @click="switchTab('mcp')" title="MCP">MCP/A2A</div>
-                                <div class="settings-tab" :class="{'active': activeTab === 'developer'}"
+                                <div class="settings-tab" x-show="$store.auth?.isAdmin" :class="{'active': activeTab === 'developer'}"
                                     @click="switchTab('developer')" title="Developer">Developer</div>
                                 <div class="settings-tab" :class="{'active': activeTab === 'scheduler'}"
                                     @click="switchTab('scheduler')" title="Task Scheduler">Task Scheduler</div>
-                                <div class="settings-tab" :class="{'active': activeTab === 'backup'}"
+                                <div class="settings-tab" x-show="$store.auth?.isAdmin" :class="{'active': activeTab === 'backup'}"
                                     @click="switchTab('backup')" title="Backup & Restore">Backup & Restore</div>
+                                <div class="settings-tab" x-show="$store.auth?.isAdmin" :class="{'active': activeTab === 'users'}"
+                                    @click="switchTab('users')" title="Users">Utilisateurs</div>
                             </div>
                         </div>
 
@@ -702,6 +714,11 @@
                             <div id="section-image-gen" class="section" x-show="activeTab === 'integrations'">
                                 <x-component path="settings/image-gen/image-gen-section.html" />
                             </div>
+                        </div>
+
+                        <!-- Users Tab Content (Admin only) -->
+                        <div id="users-tab-content" x-show="activeTab === 'users'" x-cloak>
+                            <x-component path="settings/users/user-management.html" />
                         </div>
 
                         <!-- Task Scheduler Tab Content -->

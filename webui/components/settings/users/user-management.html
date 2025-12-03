@@ -1,0 +1,139 @@
+<div x-data>
+  <script type="module" src="/components/settings/users/user-management-store.js"></script>
+  <div class="section">
+    <div class="section-title">Gestion des Utilisateurs</div>
+    <div class="section-description">Créer, modifier et supprimer des utilisateurs. Seuls les administrateurs ont accès à cette section.</div>
+
+    <div class="field field-full" x-data="$store.userManagementStore" x-init="init()">
+      <div class="field-control" style="display:flex; gap:.5rem; align-items:center; flex-wrap:wrap;">
+        <button class="btn btn-ok" @click="openCreateModal()">
+          <span class="material-symbols-outlined">person_add</span>
+          Créer un nouvel utilisateur
+        </button>
+        <span x-show="loading">Chargement...</span>
+        <span class="status-error" x-show="error" x-text="error"></span>
+      </div>
+
+      <div class="table-container" style="margin-top: .75rem; overflow:auto;">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Username</th>
+              <th>Rôle</th>
+              <th>Créé le</th>
+              <th>Créé par</th>
+              <th>Dernière connexion</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <template x-for="u in users" :key="u.id">
+              <tr>
+                <td x-text="u.username"></td>
+                <td>
+                  <span :class="{'badge': true, 'badge-blue': u.role==='admin', 'badge-gray': u.role==='user'}" x-text="u.role"></span>
+                </td>
+                <td x-text="u.created_at || ''"></td>
+                <td x-text="u.created_by || ''"></td>
+                <td x-text="u.last_login || ''"></td>
+                <td>
+                  <button class="btn btn-field" title="Modifier" @click="openEditModal(u)">
+                    <span class="material-symbols-outlined">edit</span>
+                  </button>
+                  <button class="btn btn-cancel" title="Supprimer" @click="openDeleteModal(u)">
+                    <span class="material-symbols-outlined">delete</span>
+                  </button>
+                </td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Create Modal -->
+      <div class="modal-overlay" x-show="showCreateModal" @click.self="closeModals()">
+        <div class="modal-container">
+          <div class="modal-header">
+            <h3>Créer un utilisateur</h3>
+            <button class="modal-close" @click="closeModals()">&times;</button>
+          </div>
+          <div class="modal-content">
+            <div class="field">
+              <div class="field-label"><div class="field-title">Username</div></div>
+              <div class="field-control"><input type="text" x-model="formData.username"></div>
+            </div>
+            <div class="field">
+              <div class="field-label"><div class="field-title">Password</div></div>
+              <div class="field-control"><input type="password" x-model="formData.password"></div>
+            </div>
+            <div class="field">
+              <div class="field-label"><div class="field-title">Rôle</div></div>
+              <div class="field-control">
+                <select x-model="formData.role">
+                  <option value="admin">Admin</option>
+                  <option value="user">User</option>
+                </select>
+              </div>
+            </div>
+            <div class="modal-actions">
+              <button class="btn btn-cancel" @click="closeModals()">Annuler</button>
+              <button class="btn btn-ok" @click="createUser()">Enregistrer</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Edit Modal -->
+      <div class="modal-overlay" x-show="showEditModal" @click.self="closeModals()">
+        <div class="modal-container">
+          <div class="modal-header">
+            <h3>Modifier l'utilisateur</h3>
+            <button class="modal-close" @click="closeModals()">&times;</button>
+          </div>
+          <div class="modal-content">
+            <div class="field">
+              <div class="field-label"><div class="field-title">Username</div></div>
+              <div class="field-control"><input type="text" x-model="formData.username" readonly></div>
+            </div>
+            <div class="field">
+              <div class="field-label"><div class="field-title">Nouveau mot de passe</div></div>
+              <div class="field-control"><input type="password" x-model="formData.password" placeholder="Laisser vide pour ne pas changer"></div>
+            </div>
+            <div class="field">
+              <div class="field-label"><div class="field-title">Rôle</div></div>
+              <div class="field-control">
+                <select x-model="formData.role">
+                  <option value="admin">Admin</option>
+                  <option value="user">User</option>
+                </select>
+              </div>
+            </div>
+            <div class="modal-actions">
+              <button class="btn btn-cancel" @click="closeModals()">Annuler</button>
+              <button class="btn btn-ok" @click="updateUser()">Enregistrer</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Delete Modal -->
+      <div class="modal-overlay" x-show="showDeleteModal" @click.self="closeModals()">
+        <div class="modal-container">
+          <div class="modal-header">
+            <h3>Supprimer l'utilisateur</h3>
+            <button class="modal-close" @click="closeModals()">&times;</button>
+          </div>
+          <div class="modal-content">
+            <p>Êtes-vous sûr de vouloir supprimer l'utilisateur <strong x-text="currentUser?.username"></strong> ?</p>
+            <p class="status-error">Attention: il doit rester au moins un administrateur actif.</p>
+            <div class="modal-actions">
+              <button class="btn btn-cancel" @click="closeModals()">Annuler</button>
+              <button class="btn btn-cancel" style="background:#b00020;color:#fff;" @click="deleteUser()">Supprimer</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>

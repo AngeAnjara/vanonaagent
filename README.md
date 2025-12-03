@@ -434,3 +434,22 @@ Tip: For multi-slide PPTX, structure your HTML with one container per slide usin
 - [Join our Discord](https://discord.gg/B8KZKNsPpj) for live discussions or [visit our Skool Community](https://www.skool.com/agent-zero).
 - [Follow our YouTube channel](https://www.youtube.com/@AgentZeroFW) for hands-on explanations and tutorials
 - [Report Issues](https://github.com/agent0ai/agent-zero/issues) for bug fixes and features
+
+## 🔐 Authentication
+
+Agent Zero now supports a role-based authentication system backed by a SQLite user database.
+
+- Admin: Full access (settings, memory dashboard, all chats, user management)
+- User: Limited access (only own chats; no access to Settings or Memory)
+
+### First Time Setup
+
+- On first start, the app creates the initial admin user from `.env` values `AUTH_LOGIN` and `AUTH_PASSWORD`.
+- After you log in, open Settings → Utilisateurs to create additional users.
+- For security, change the initial admin password immediately.
+
+### User Management
+
+- Admins can list/create/update/delete users in Settings → Utilisateurs.
+- A delete action is blocked if it would remove the last remaining admin.
+- Chats are isolated per user. Admins can see all chats; users only see their own.

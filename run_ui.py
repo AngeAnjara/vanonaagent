@@ -12,6 +12,7 @@ from flask import Flask, request, Response, session, redirect, url_for, render_t
 from werkzeug.wrappers.response import Response as BaseResponse
 import initialize
 from python.helpers import files, git, mcp_server, fasta2a_server
+from python.helpers import user_management
 from python.helpers.files import get_abs_path
 from python.helpers import runtime, dotenv, process
 from python.helpers.extract_tools import load_classes_from_folder
@@ -101,6 +102,20 @@ def requires_api_key(f):
     return decorated
 
 
+def requires_admin(f):
+    @wraps(f)
+    async def decorated(*args, **kwargs):
+        # First ensure authenticated if auth enabled
+        user_pass_hash = _get_credentials_hash()
+        if user_pass_hash and session.get('authentication') != user_pass_hash:
+            return redirect(url_for('login'))
+        if session.get('role') != user_management.ROLE_ADMIN:
+            return Response("Access denied.", 403, {})
+        return await f(*args, **kwargs)
+
+    return decorated
+
+
 # allow only loopback addresses
 def requires_loopback(f):
     @wraps(f)
@@ -117,7 +132,7 @@ def requires_loopback(f):
 
 
 def _get_credentials_hash():
-    user = dotenv.get_dotenv_value("AUTH_LOGIN")
+    user = session.get('username') or dotenv.get_dotenv_value("AUTH_LOGIN")
     password = dotenv.get_dotenv_value("AUTH_PASSWORD")
     if not user:
         return None
@@ -156,11 +171,19 @@ def csrf_protect(f):
 async def login():
     error = None
     if request.method == 'POST':
-        user = dotenv.get_dotenv_value("AUTH_LOGIN")
-        password = dotenv.get_dotenv_value("AUTH_PASSWORD")
-        
-        if request.form['username'] == user and request.form['password'] == password:
+        username = request.form['username']
+        password = request.form['password']
+        user = user_management.authenticate_user(username, password)
+        if user:
+            session['username'] = user['username']
+            session['role'] = user['role']
+            session['user_id'] = user['id']
+            # maintain compatibility hash
             session['authentication'] = _get_credentials_hash()
+            try:
+                user_management.update_last_login(user['id'])
+            except Exception:
+                pass
             return redirect(url_for('serve_index'))
         else:
             error = 'Invalid Credentials. Please try again.'
@@ -170,7 +193,7 @@ async def login():
 
 @webapp.route("/logout")
 async def logout():
-    session.pop('authentication', None)
+    session.clear()
     return redirect(url_for('login'))
 
 # handle default address, load index
@@ -230,6 +253,8 @@ def run():
             handler_wrap = requires_api_key(handler_wrap)
         if handler.requires_csrf():
             handler_wrap = csrf_protect(handler_wrap)
+        if hasattr(handler, 'requires_admin') and handler.requires_admin():
+            handler_wrap = requires_admin(handler_wrap)
 
         app.add_url_rule(
             f"/{name}",
@@ -272,6 +297,8 @@ def run():
 
 
 def init_a0():
+    # initialize user database
+    user_management.initialize_database()
     # initialize contexts and MCP
     init_chats = initialize.initialize_chats()
     # only wait for init chats, otherwise they would seem to disappear for a while on restart

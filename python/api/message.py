@@ -1,5 +1,7 @@
 from agent import AgentContext, UserMessage
 from python.helpers.api import ApiHandler, Request, Response
+from flask import session
+from python.helpers import user_management
 
 from python.helpers import files
 import os
@@ -54,6 +56,20 @@ class Message(ApiHandler):
 
         # Obtain agent context
         context = self.get_context(ctxid)
+        # Set owner on newly created contexts (no ctxid provided)
+        if not ctxid:
+            try:
+                if not hasattr(context, 'metadata'):
+                    context.metadata = {}
+                context.metadata['owner'] = session.get('username')
+            except Exception:
+                pass
+        # Enforce ownership for non-admin users
+        role = session.get('role')
+        if role != user_management.ROLE_ADMIN:
+            owner = getattr(context, 'metadata', {}).get('owner') if hasattr(context, 'metadata') else None
+            if owner != session.get('username'):
+                return Response("Access denied to this chat", 403)
 
         # Store attachments in agent data
         # context.agent0.set_data("attachments", attachment_paths)
