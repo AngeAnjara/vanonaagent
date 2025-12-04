@@ -5,8 +5,9 @@
     <div class="section-description">Créer, modifier et supprimer des utilisateurs. Seuls les administrateurs ont accès à cette section.</div>
 
     <div class="field field-full" x-data="$store.userManagementStore" x-init="init()">
+      <!-- Header actions -->
       <div class="field-control" style="display:flex; gap:.5rem; align-items:center; flex-wrap:wrap;">
-        <button class="btn btn-ok" @click="openCreateModal()">
+        <button class="btn btn-ok" @click="openCreateForm()">
           <span class="material-symbols-outlined">person_add</span>
           Créer un nouvel utilisateur
         </button>
@@ -14,7 +15,8 @@
         <span class="status-error" x-show="error" x-text="error"></span>
       </div>
 
-      <div class="table-container" style="margin-top: .75rem; overflow:auto;">
+      <!-- Users list -->
+      <div class="table-container" style="margin-top: .75rem; overflow:auto;" x-show="!formMode">
         <table class="table">
           <thead>
             <tr>
@@ -37,10 +39,10 @@
                 <td x-text="u.created_by || ''"></td>
                 <td x-text="u.last_login || ''"></td>
                 <td>
-                  <button class="btn btn-field" title="Modifier" @click="openEditModal(u)">
+                  <button class="btn btn-field" title="Modifier" @click="openEditForm(u)">
                     <span class="material-symbols-outlined">edit</span>
                   </button>
-                  <button class="btn btn-cancel" title="Supprimer" @click="openDeleteModal(u)">
+                  <button class="btn btn-cancel" title="Supprimer" @click="openDeleteConfirm(u)">
                     <span class="material-symbols-outlined">delete</span>
                   </button>
                 </td>
@@ -50,87 +52,71 @@
         </table>
       </div>
 
-      <!-- Create Modal -->
-      <div class="modal-overlay" x-show="showCreateModal" x-cloak @click.self="closeModals()" x-transition>
-        <div class="modal-container">
-          <div class="modal-header">
-            <h3>Créer un utilisateur</h3>
-            <button class="modal-close" @click="closeModals()">&times;</button>
+      <!-- Form section (create/edit) -->
+      <div class="section" x-show="formMode==='create' || formMode==='edit'">
+        <div class="section-title" x-text="formMode==='create' ? 'Créer un utilisateur' : 'Modifier l\'utilisateur'"></div>
+        <div class="section-description" x-show="statusMessage">
+          <span :class="{'status-success': statusType==='success', 'status-error': statusType==='error', 'status-info': statusType==='info'}" x-text="statusMessage"></span>
+        </div>
+
+        <div class="field">
+          <div class="field-label">
+            <div class="field-title">Username</div>
           </div>
-          <div class="modal-content">
-            <div class="field">
-              <div class="field-label"><div class="field-title">Username</div></div>
-              <div class="field-control"><input type="text" x-model="formData.username"></div>
-            </div>
-            <div class="field">
-              <div class="field-label"><div class="field-title">Password</div></div>
-              <div class="field-control"><input type="password" x-model="formData.password"></div>
-            </div>
-            <div class="field">
-              <div class="field-label"><div class="field-title">Rôle</div></div>
-              <div class="field-control">
-                <select x-model="formData.role">
-                  <option value="admin">Admin</option>
-                  <option value="user">User</option>
-                </select>
-              </div>
-            </div>
-            <div class="modal-actions">
-              <button class="btn btn-cancel" @click="closeModals()">Annuler</button>
-              <button class="btn btn-ok" @click="createUser()">Enregistrer</button>
-            </div>
+          <div class="field-control">
+            <input type="text" x-model="formData.username" :readonly="formMode==='edit'">
+            <div class="validation-error" x-show="validationErrors.username" x-text="validationErrors.username"></div>
           </div>
+        </div>
+
+        <div class="field">
+          <div class="field-label">
+            <div class="field-title" x-text="formMode==='edit' ? 'Nouveau mot de passe' : 'Mot de passe'"></div>
+            <div class="field-description" x-text="formMode==='edit' ? 'Laisser vide pour ne pas changer' : 'Min. 6 caractères'"></div>
+          </div>
+          <div class="field-control">
+            <input type="password" x-model="formData.password" :placeholder="formMode==='edit' ? 'Laisser vide pour ne pas changer' : ''">
+            <div class="validation-error" x-show="validationErrors.password" x-text="validationErrors.password"></div>
+          </div>
+        </div>
+
+        <div class="field">
+          <div class="field-label"><div class="field-title">Rôle</div></div>
+          <div class="field-control">
+            <select x-model="formData.role">
+              <option value="admin">Admin</option>
+              <option value="user">User</option>
+            </select>
+            <div class="validation-error" x-show="validationErrors.role" x-text="validationErrors.role"></div>
+          </div>
+        </div>
+
+        <div class="modal-actions">
+          <button class="btn btn-cancel" @click="closeForm()">
+            <span class="material-symbols-outlined">cancel</span>
+            Annuler
+          </button>
+          <button class="btn btn-field" x-show="formData.id" :disabled="isTesting || !formData.password" @click="testCredentials()">
+            <span class="material-symbols-outlined">play_circle</span>
+            <span x-text="isTesting ? 'Test en cours...' : 'Tester les identifiants'"></span>
+          </button>
+          <button class="btn btn-ok" @click="formMode==='create' ? createUser() : updateUser()">
+            <span class="material-symbols-outlined">save</span>
+            Enregistrer
+          </button>
         </div>
       </div>
 
-      <!-- Edit Modal -->
-      <div class="modal-overlay" x-show="showEditModal" x-cloak @click.self="closeModals()" x-transition>
-        <div class="modal-container">
-          <div class="modal-header">
-            <h3>Modifier l'utilisateur</h3>
-            <button class="modal-close" @click="closeModals()">&times;</button>
-          </div>
-          <div class="modal-content">
-            <div class="field">
-              <div class="field-label"><div class="field-title">Username</div></div>
-              <div class="field-control"><input type="text" x-model="formData.username" readonly></div>
-            </div>
-            <div class="field">
-              <div class="field-label"><div class="field-title">Nouveau mot de passe</div></div>
-              <div class="field-control"><input type="password" x-model="formData.password" placeholder="Laisser vide pour ne pas changer"></div>
-            </div>
-            <div class="field">
-              <div class="field-label"><div class="field-title">Rôle</div></div>
-              <div class="field-control">
-                <select x-model="formData.role">
-                  <option value="admin">Admin</option>
-                  <option value="user">User</option>
-                </select>
-              </div>
-            </div>
-            <div class="modal-actions">
-              <button class="btn btn-cancel" @click="closeModals()">Annuler</button>
-              <button class="btn btn-ok" @click="updateUser()">Enregistrer</button>
-            </div>
-          </div>
+      <!-- Delete confirmation section -->
+      <div class="section" x-show="formMode==='delete'">
+        <div class="section-title">Supprimer l'utilisateur</div>
+        <div class="section-description">
+          <p>Êtes-vous sûr de vouloir supprimer l'utilisateur <strong x-text="currentUser?.username"></strong> ?</p>
+          <p class="status-error">Attention: il doit rester au moins un administrateur actif.</p>
         </div>
-      </div>
-
-      <!-- Delete Modal -->
-      <div class="modal-overlay" x-show="showDeleteModal" x-cloak @click.self="closeModals()" x-transition>
-        <div class="modal-container">
-          <div class="modal-header">
-            <h3>Supprimer l'utilisateur</h3>
-            <button class="modal-close" @click="closeModals()">&times;</button>
-          </div>
-          <div class="modal-content">
-            <p>Êtes-vous sûr de vouloir supprimer l'utilisateur <strong x-text="currentUser?.username"></strong> ?</p>
-            <p class="status-error">Attention: il doit rester au moins un administrateur actif.</p>
-            <div class="modal-actions">
-              <button class="btn btn-cancel" @click="closeModals()">Annuler</button>
-              <button class="btn btn-cancel" style="background:#b00020;color:#fff;" @click="deleteUser()">Supprimer</button>
-            </div>
-          </div>
+        <div class="modal-actions">
+          <button class="btn btn-cancel" @click="closeForm()">Annuler</button>
+          <button class="btn btn-cancel" style="background:#b00020;color:#fff;" @click="deleteUser()">Supprimer</button>
         </div>
       </div>
 

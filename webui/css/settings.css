@@ -938,3 +938,15 @@ nav ul li a img {
 }
 
 /* Token field (for ad-hoc tasks) */
+
+/* Validation and form error styles */
+.validation-error {
+  color: var(--color-accent);
+  font-size: 0.85rem;
+  margin-top: 0.35rem;
+}
+
+.field-error {
+  border-color: var(--color-accent) !important;
+  background-color: rgba(255, 0, 0, 0.05);
+}
