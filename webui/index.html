@@ -158,6 +158,13 @@
             <!--Sidebar upper elements-->
             <div class="left-panel-top">
                 <div class="config-section" x-data="{ showQuickActions: true }">
+                    <div style="padding: 0.5rem; margin-bottom: 0.5rem; background: var(--color-panel); border-radius: 4px; font-size: 0.85rem;" x-data x-show="$store.auth?.isAuthenticated">
+                      <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <span style="opacity: 0.7;">Connecté en tant que:</span>
+                        <strong x-text="$store.auth?.username || 'Chargement...'"></strong>
+                        <span :class="{'badge': true, 'badge-blue': $store.auth?.role==='admin', 'badge-gray': $store.auth?.role!=='admin'}" x-text="$store.auth?.role || ''" style="font-weight: bold; text-transform: uppercase;"></span>
+                      </div>
+                    </div>
                     <button class="config-button" id="resetChat" @click="resetChat()">Reset Chat</button>
                     <button class="config-button" id="newChat" @click="newChat()">New Chat</button>
                     <button class="config-button" id="loadChats" @click="loadChats()">Load Chat</button>
@@ -176,10 +183,15 @@
                     <button class="config-button" id="memory-dash" x-show="$store.auth?.isAdmin"
                         @click="openModal('settings/memory/memory-dashboard.html');">Memory</button>
 
-                    <button class="config-button" id="users-dash" x-show="$store.auth?.isAdmin"
-                        @click="openModal('users/users-dashboard.html');">
+                    <button class="config-button" id="users-dash" x-show="$store.auth?.isAdmin === true"
+                        title="Gestion des utilisateurs (Admin uniquement)"
+                        @click="console.log('Users button clicked, isAdmin:', $store.auth?.isAdmin); openModal('users/users-dashboard.html');">
                         <span class="material-symbols-outlined">group</span>Users
                     </button>
+
+                    <div x-show="$store.auth?.isLoading" style="padding: 0.5rem; opacity: 0.6; font-size: 0.85rem;">
+                      Chargement de l'authentification...
+                    </div>
 
 
                 </div>

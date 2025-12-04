@@ -56,13 +56,19 @@ document.addEventListener("alpine:init", async () => {
       role: null,
       isAdmin: false,
       isAuthenticated: false,
+      isLoading: true,
       async loadCurrentUser() {
         try {
+          this.isLoading = true;
           const res = await callJsonApi('/current_user_get', {});
+          console.log('[Auth Store] API response:', res);
           const u = res?.user || {};
           this.setUser(u.username || null, u.role || null);
+          console.log('[Auth Store] User loaded:', { username: u.username, role: u.role });
+          this.isLoading = false;
         } catch (_e) {
-          // ignore
+          console.error('[Auth Store] Failed to load current user:', _e);
+          this.isLoading = false;
         }
       },
       setUser(username, role) {
@@ -70,13 +76,16 @@ document.addEventListener("alpine:init", async () => {
         this.role = role;
         this.isAdmin = role === 'admin';
         this.isAuthenticated = !!username;
+        console.log('[Auth Store] User set:', { username, role, isAdmin: this.isAdmin, isAuthenticated: this.isAuthenticated });
       },
       logout() {
         window.location.href = '/logout';
       },
     };
     Alpine.store('auth', initial);
+    console.log('[Auth Store] Store initialized');
     // Load current user on init
+    console.log('[Auth Store] Loading current user...');
     queueMicrotask(() => Alpine.store('auth')?.loadCurrentUser?.());
   } catch (e) {
     // no-op if api.js isn't available yet

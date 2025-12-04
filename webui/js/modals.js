@@ -105,8 +105,10 @@ function createModalElement(name) {
 export function openModal(modalPath) {
   return new Promise((resolve) => {
     try {
+      console.log('[Modal] Opening modal:', modalPath);
       // Create new modal instance
       const modal = createModalElement();
+      console.log('[Modal] Modal element created');
 
       new MutationObserver(
         (_, o) =>
@@ -135,22 +137,24 @@ export function openModal(modalPath) {
           if (doc.body && doc.body.classList) {
             modal.body.classList.add(...doc.body.classList);
           }
+          console.log('[Modal] Component loaded successfully:', modalPath);
         })
         .catch((error) => {
-          console.error("Error loading modal content:", error);
+          console.error('[Modal] Error loading modal content:', modalPath, error);
           modal.body.innerHTML = `<div class="error">Failed to load modal content: ${error.message}</div>`;
         });
 
       // Add modal to stack and show it
       // Add modal to stack
       modalStack.push(modal);
+      console.log('[Modal] Modal added to stack, total modals:', modalStack.length);
       modal.element.classList.add("show");
       document.body.style.overflow = "hidden";
 
       // Update modal z-indexes
       updateModalZIndexes();
     } catch (error) {
-      console.error("Error loading modal content:", error);
+      console.error('[Modal] Error loading modal content:', modalPath, error);
       resolve();
     }
   });
