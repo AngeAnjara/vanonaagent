@@ -68,6 +68,8 @@ class Poll(ApiHandler):
 
             # Create the base context data that will be returned
             context_data = ctx.serialize()
+            # include ownership metadata for frontend filtering (defense in depth)
+            context_data['owner'] = getattr(ctx, 'metadata', {}).get('owner') if hasattr(ctx, 'metadata') else None
 
             context_task = scheduler.get_task_by_uuid(ctx.id)
             # Determine if this is a task-dedicated context by checking if a task with this UUID exists

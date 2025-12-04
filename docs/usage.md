@@ -384,3 +384,36 @@ Sharing Agent Zero configurations:
 
 > [!TIP]
 > The backup system is designed to work across different operating systems and Agent Zero installations. Your backups from a Windows system will work on Linux, and vice versa.
+
+## User Management
+
+### Chat Isolation
+
+Agent Zero implémente une isolation des chats par utilisateur:
+
+- Les utilisateurs réguliers ne voient et n'accèdent qu'à leurs propres chats.
+- Les administrateurs voient tous les chats et accèdent au Users Dashboard.
+- Les chats sont automatiquement chargés après la connexion selon le rôle.
+- Chaque chat est stocké dans `tmp/chats/{username}/{chat_id}/`.
+
+Depuis la version récente, les chats ne sont plus tous chargés globalement au démarrage: ils sont rechargés dynamiquement après la connexion de l'utilisateur. En complément, le frontend masque les chats non-accessibles (défense en profondeur).
+
+### Admin Dashboard (Users)
+
+Les administrateurs disposent d'un Users Dashboard (bouton Users dans la sidebar):
+
+1. Créer des utilisateurs: «Créer un utilisateur» pour ajouter un utilisateur
+2. Modifier des utilisateurs: changer rôles et mots de passe
+3. Tester des identifiants: vérifier les credentials sans se déconnecter
+4. Voir les chats d'un utilisateur: icône œil pour lister ses chats
+5. Supprimer des utilisateurs: au moins un admin doit rester actif
+
+Le bouton Users n'apparaît que pour les comptes admin. Les badges de rôle sont visibles en haut de la sidebar et dans le dashboard.
+
+### Dépannage du bouton Users
+
+- Vérifier le rôle: assurez-vous que votre compte est Admin.
+- Inspecter le store Alpine: dans la console, exécutez `Alpine.store('auth')` et vérifiez `{ username, role, isAdmin }`.
+- Logs frontend: consultez les logs `[Auth Store]` (chargement utilisateur) et `[Modal]` (ouverture du composant) dans la console.
+- Recharger la page si vous voyez des erreurs Alpine.js, puis reconnectez-vous.
+- Si vos chats n'apparaissent pas après connexion, déconnectez-vous puis reconnectez-vous pour forcer le rechargement des chats.

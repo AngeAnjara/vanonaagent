@@ -69,8 +69,37 @@ def save_tmp_chats():
         save_tmp_chat(context, owner)
 
 
-def load_tmp_chats(username: str | None = None):
-    """Load contexts from the chats folder; if username is provided, only that user's chats, else all."""
+def unload_user_chats(username: str | None = None):
+    """Remove contexts belonging to a specific user from memory."""
+    if username is None:
+        return  # do not unload all chats by default
+    from agent import AgentContext
+    to_remove: list[str] = []
+    for ctx_id, ctx in list(AgentContext._contexts.items()):
+        owner = getattr(ctx, "metadata", {}).get("owner") if hasattr(ctx, "metadata") else None
+        if owner == username:
+            to_remove.append(ctx_id)
+    for ctx_id in to_remove:
+        try:
+            del AgentContext._contexts[ctx_id]
+        except Exception:
+            pass
+    print(f"Unloaded {len(to_remove)} chats for user {username}")
+
+
+def load_tmp_chats(username: str | None = None, reload: bool = False):
+    """Load contexts from the chats folder; if username is provided, only that user's chats, else all.
+    If reload=True, unload existing contexts for that user first.
+
+    Ownership behavior:
+    - When loading, we restore metadata.owner from persisted JSON if present. For any legacy chats
+      lacking owner metadata, they remain admin-visible-only (stored under admin namespace after
+      migration). This ensures regular users never see orphaned/legacy chats.
+    - Optional future enhancement: upon first login on legacy systems, admins may reassign orphaned
+      chats via the Users Dashboard.
+    """
+    if reload:
+        unload_user_chats(username)
     _convert_v080_chats()
     _migrate_legacy_chats()
 
@@ -123,7 +152,15 @@ def _convert_v080_chats():
 
 
 def _migrate_legacy_chats():
-    """Migrate chats stored directly under tmp/chats/<ctxid> to tmp/chats/admin/<ctxid> once."""
+    """
+    Migrate chats stored directly under tmp/chats/<ctxid> to tmp/chats/admin/<ctxid> once.
+
+    Notes on ownership/visibility for legacy installs:
+    1) Legacy chats without explicit metadata.owner are treated as admin-owned/admin-visible by
+       moving them under tmp/chats/admin. Regular users will not see these unless reassigned.
+    2) Regular users will only ever see chats that carry their username in metadata.owner and
+       physically reside under tmp/chats/{username}/.
+    """
     # detect folders that contain chat.json directly
     entries = files.list_files(CHATS_FOLDER, "*")
     for entry in entries:

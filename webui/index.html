@@ -106,6 +106,9 @@
     <script defer src="vendor/alpine/alpine.collapse.min.js"></script>
     <!-- <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.3/dist/cdn.min.js"></script> -->
     <script type="module" src="js/initFw.js"></script>
+    <!-- Preload additional Alpine stores -->
+    <script type="module" src="/components/settings/image-gen/image-gen-store.js"></script>
+    <script type="module" src="/components/users/users-dashboard-store.js"></script>
 
     <script src="vendor/ace-min/ace.js"></script>
     <link href="vendor/ace-min/ace.min.css" rel="stylesheet">
@@ -210,7 +213,7 @@
                     <div class="chats-list-container">
                         <ul class="config-list" x-show="contexts.length > 0">
                             <template x-for="context in contexts">
-                                <li>
+                                <li x-show="$store.auth?.role === 'admin' || !context.owner || context.owner === $store.auth?.username">
                                     <div :class="{'chat-list-button': true, 'font-bold': context.id === selected}"
                                         @click="selected = context.id; selectChat(context.id)">
                                         <span class="chat-name"

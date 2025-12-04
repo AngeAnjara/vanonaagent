@@ -134,10 +134,10 @@ def initialize_agent():
     # return config object
     return config
 
-def initialize_chats(username: str | None = None):
+def initialize_chats(username: str | None = None, reload: bool = False):
     from python.helpers import persist_chat
     async def initialize_chats_async():
-        persist_chat.load_tmp_chats(username)
+        persist_chat.load_tmp_chats(username, reload)
     return defer.DeferredTask().start_task(initialize_chats_async)
 
 def initialize_mcp():

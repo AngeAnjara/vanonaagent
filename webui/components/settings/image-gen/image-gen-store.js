@@ -1,4 +1,5 @@
 import { createStore } from "/js/AlpineStore.js";
+import { fetchApi } from "/js/api.js";
 
 const model = {
   enabled: false,
@@ -14,6 +15,7 @@ const model = {
   statusType: "info",
 
   async init() {
+    console.log('imageGenStore initialized');
     await this.loadFromSettings();
   },
 

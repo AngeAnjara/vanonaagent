@@ -184,6 +184,18 @@ async def login():
                 user_management.update_last_login(user['id'])
             except Exception:
                 pass
+            # Reload chats for this user without tying to request loop.
+            # Schedule on the shared DeferredTask event loop; do not await.
+            try:
+                if user['role'] == user_management.ROLE_ADMIN:
+                    # None => load all users' chats for admin
+                    initialize.initialize_chats(None, reload=True)
+                else:
+                    # Load only this user's chats
+                    initialize.initialize_chats(user['username'], reload=True)
+            except Exception as e:
+                print(f"Error scheduling chat reload for user {user['username']}: {e}")
+
             return redirect(url_for('serve_index'))
         else:
             error = 'Invalid Credentials. Please try again.'
@@ -300,7 +312,8 @@ def init_a0():
     # initialize user database
     user_management.initialize_database()
     # initialize contexts and MCP
-    init_chats = initialize.initialize_chats()
+    # Load only admin chats at startup; other users' chats are loaded after login
+    init_chats = initialize.initialize_chats("admin")
     # only wait for init chats, otherwise they would seem to disappear for a while on restart
     init_chats.result_sync()
 
