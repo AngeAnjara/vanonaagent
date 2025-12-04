@@ -1,13 +1,4 @@
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-  <meta charset="UTF-8" />
-  <title>Users Dashboard</title>
-  <link rel="stylesheet" href="/css/settings.css" />
-  <link rel="stylesheet" href="/css/modals.css" />
-  <link rel="stylesheet" href="/vendor/google/google-icons.css" />
-  <script type="module" src="/components/users/users-dashboard-store.js"></script>
-  <style>
+<style>
     .users-dashboard { display: flex; flex-direction: column; gap: 1rem; }
     .users-table { width: 100%; border-collapse: collapse; }
     .users-table th, .users-table td { border-bottom: 1px solid var(--color-border); padding: 0.5rem; text-align: left; }
@@ -19,9 +10,7 @@
     .status-info { color: #2196f3; }
     @media (max-width: 870px) { .users-table th:nth-child(6), .users-table td:nth-child(6) { white-space: nowrap; } }
   </style>
-</head>
-<body x-data="$store.usersDashboardStore" x-create="onOpen()" x-destroy="cleanup()">
-  <div class="section users-dashboard">
+<div class="section users-dashboard" x-data="$store.usersDashboardStore" x-create="onOpen()" x-destroy="cleanup()">
     <div class="section-title">Gestion des Utilisateurs</div>
     <div class="section-description">Créer, modifier et supprimer des utilisateurs. Voir l'historique des chats par utilisateur.</div>
 
@@ -205,5 +194,3 @@
       </div>
     </div>
   </div>
-</body>
-</html>
