@@ -176,6 +176,11 @@
                     <button class="config-button" id="memory-dash" x-show="$store.auth?.isAdmin"
                         @click="openModal('settings/memory/memory-dashboard.html');">Memory</button>
 
+                    <button class="config-button" id="users-dash" x-show="$store.auth?.isAdmin"
+                        @click="openModal('users/users-dashboard.html');">
+                        <span class="material-symbols-outlined">group</span>Users
+                    </button>
+
 
                 </div>
 

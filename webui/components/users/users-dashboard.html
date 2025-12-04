@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <title>Users Dashboard</title>
+  <link rel="stylesheet" href="/css/settings.css" />
+  <link rel="stylesheet" href="/css/modals.css" />
+  <link rel="stylesheet" href="/vendor/google/google-icons.css" />
+  <script type="module" src="/components/users/users-dashboard-store.js"></script>
+  <style>
+    .users-dashboard { display: flex; flex-direction: column; gap: 1rem; }
+    .users-table { width: 100%; border-collapse: collapse; }
+    .users-table th, .users-table td { border-bottom: 1px solid var(--color-border); padding: 0.5rem; text-align: left; }
+    .users-actions { display: flex; gap: .5rem; align-items: center; }
+    .header-actions { display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; }
+    .status-row { min-height: 1.2rem; }
+    .status-success { color: #28a745; }
+    .status-error { color: #e53935; }
+    .status-info { color: #2196f3; }
+    .badge { display:inline-block; padding: .1rem .5rem; border-radius: .25rem; font-size: .75rem; }
+    .badge-blue { background: #0d47a1; color: #fff; }
+    .badge-gray { background: #555; color: #fff; }
+    @media (max-width: 870px) { .users-table th:nth-child(6), .users-table td:nth-child(6) { white-space: nowrap; } }
+  </style>
+</head>
+<body x-data="$store.usersDashboardStore" x-create="onOpen()" x-destroy="cleanup()">
+  <div class="section users-dashboard">
+    <div class="section-title">Gestion des Utilisateurs</div>
+    <div class="section-description">Créer, modifier et supprimer des utilisateurs. Voir l'historique des chats par utilisateur.</div>
+
+    <div class="header-actions">
+      <button class="btn btn-ok" @click="openCreateForm()">
+        <span class="material-symbols-outlined">person_add</span>
+        Créer un utilisateur
+      </button>
+      <span x-show="loading">Chargement...</span>
+      <span class="status-error" x-show="error" x-text="error"></span>
+    </div>
+
+    <!-- Users list -->
+    <div class="table-container" x-show="!formMode && !selectedUser">
+      <table class="table users-table">
+        <thead>
+          <tr>
+            <th>Username</th>
+            <th>Rôle</th>
+            <th>Créé le</th>
+            <th>Créé par</th>
+            <th>Dernière connexion</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <template x-for="u in paginatedUsers" :key="u.id">
+            <tr>
+              <td x-text="u.username"></td>
+              <td>
+                <span :class="{'badge': true, 'badge-blue': u.role==='admin', 'badge-gray': u.role==='user'}" x-text="u.role"></span>
+              </td>
+              <td x-text="formatDate(u.created_at)"></td>
+              <td x-text="u.created_by || ''"></td>
+              <td x-text="formatDate(u.last_login)"></td>
+              <td>
+                <div class="users-actions">
+                  <button class="btn btn-field" title="Modifier" @click="openEditForm(u)">
+                    <span class="material-symbols-outlined">edit</span>
+                  </button>
+                  <button class="btn btn-cancel" title="Supprimer" @click="openDeleteConfirm(u)">
+                    <span class="material-symbols-outlined">delete</span>
+                  </button>
+                  <button class="btn btn-field" title="Voir chats" @click="viewUserChats(u)">
+                    <span class="material-symbols-outlined">visibility</span>
+                  </button>
+                </div>
+              </td>
+            </tr>
+          </template>
+        </tbody>
+      </table>
+      <div style="display:flex; gap:.5rem; align-items:center; margin-top:.5rem;">
+        <button class="btn btn-cancel" @click="currentPage = Math.max(1, currentPage-1)" :disabled="currentPage<=1">Précédent</button>
+        <span x-text="currentPage + ' / ' + totalPages"></span>
+        <button class="btn btn-field" @click="currentPage = Math.min(totalPages, currentPage+1)" :disabled="currentPage>=totalPages">Suivant</button>
+      </div>
+    </div>
+
+    <!-- Form section (create/edit) -->
+    <div class="section" x-show="formMode==='create' || formMode==='edit'">
+      <div class="section-title" x-text="formMode==='create' ? 'Créer un utilisateur' : 'Modifier l\'utilisateur'"></div>
+      <div class="section-description status-row" x-show="statusMessage">
+        <span :class="{'status-success': statusType==='success', 'status-error': statusType==='error', 'status-info': statusType==='info'}" x-text="statusMessage"></span>
+      </div>
+
+      <div class="field">
+        <div class="field-label"><div class="field-title">Username</div></div>
+        <div class="field-control">
+          <input type="text" x-model="formData.username" :readonly="formMode==='edit'">
+          <div class="validation-error" x-show="validationErrors.username" x-text="validationErrors.username"></div>
+        </div>
+      </div>
+
+      <div class="field">
+        <div class="field-label">
+          <div class="field-title" x-text="formMode==='edit' ? 'Nouveau mot de passe' : 'Mot de passe'"></div>
+          <div class="field-description" x-text="formMode==='edit' ? 'Laisser vide pour ne pas changer' : 'Min. 6 caractères'"></div>
+        </div>
+        <div class="field-control">
+          <input type="password" x-model="formData.password" :placeholder="formMode==='edit' ? 'Laisser vide pour ne pas changer' : ''">
+          <div class="validation-error" x-show="validationErrors.password" x-text="validationErrors.password"></div>
+        </div>
+      </div>
+
+      <div class="field">
+        <div class="field-label"><div class="field-title">Rôle</div></div>
+        <div class="field-control">
+          <select x-model="formData.role">
+            <option value="admin">Admin</option>
+            <option value="user">User</option>
+          </select>
+          <div class="validation-error" x-show="validationErrors.role" x-text="validationErrors.role"></div>
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn btn-cancel" @click="closeForm()">
+          <span class="material-symbols-outlined">cancel</span>
+          Annuler
+        </button>
+        <button class="btn btn-field" x-show="formData.id" :disabled="isTesting || !formData.password" @click="testCredentials()">
+          <span class="material-symbols-outlined">play_circle</span>
+          <span x-text="isTesting ? 'Test en cours...' : 'Tester les identifiants'"></span>
+        </button>
+        <button class="btn btn-ok" @click="formMode==='create' ? createUser() : updateUser()">
+          <span class="material-symbols-outlined">save</span>
+          Enregistrer
+        </button>
+      </div>
+    </div>
+
+    <!-- Delete confirmation section -->
+    <div class="section" x-show="formMode==='delete'">
+      <div class="section-title">Supprimer l'utilisateur</div>
+      <div class="section-description">
+        <p>Êtes-vous sûr de vouloir supprimer l'utilisateur <strong x-text="currentUser?.username"></strong> ?</p>
+        <p class="status-error">Attention: il doit rester au moins un administrateur actif.</p>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-cancel" @click="closeForm()">Annuler</button>
+        <button class="btn btn-cancel" style="background:#b00020;color:#fff;" @click="deleteUser()">Supprimer</button>
+      </div>
+    </div>
+
+    <!-- User Chats section -->
+    <div class="section" x-show="selectedUser">
+      <div class="section-title">Chats de <span x-text="selectedUser?.username"></span></div>
+      <div class="section-description status-row" x-show="statusMessage">
+        <span :class="{'status-success': statusType==='success', 'status-error': statusType==='error', 'status-info': statusType==='info'}" x-text="statusMessage"></span>
+      </div>
+      <div class="header-actions" style="justify-content: space-between;">
+        <button class="btn btn-cancel" @click="backToUsersList()">
+          <span class="material-symbols-outlined">arrow_back</span>
+          Retour
+        </button>
+        <div style="display:flex; gap:.5rem; align-items:center;">
+          <select x-model="chatFilters.type">
+            <option value="">Tous les types</option>
+            <option value="user">User</option>
+            <option value="task">Task</option>
+          </select>
+          <input type="datetime-local" x-model="chatFilters.dateFrom" />
+          <input type="datetime-local" x-model="chatFilters.dateTo" />
+        </div>
+      </div>
+
+      <div class="table-container" style="margin-top:.5rem;">
+        <table class="table users-table">
+          <thead>
+            <tr>
+              <th>Nom</th>
+              <th>Type</th>
+              <th>Créé le</th>
+              <th>Dernier message</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <template x-for="c in filteredChats" :key="c.id">
+              <tr>
+                <td x-text="c.name || ('Chat #' + c.id)"></td>
+                <td>
+                  <span class="badge" :class="{'badge-blue': c.type==='task', 'badge-gray': c.type!=='task'}" x-text="c.type"></span>
+                </td>
+                <td x-text="formatDate(c.created_at)"></td>
+                <td x-text="formatDate(c.last_message)"></td>
+                <td class="users-actions">
+                  <button class="btn btn-field" title="Ouvrir" @click="openChat(c)">
+                    <span class="material-symbols-outlined">visibility</span>
+                  </button>
+                  <button class="btn btn-cancel" title="Supprimer" @click="deleteUserChat(c.id)">
+                    <span class="material-symbols-outlined">delete</span>
+                  </button>
+                </td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+        <div x-show="!loadingChats && filteredChats.length === 0" style="opacity:.8; font-style:italic;">Aucun chat trouvé</div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
