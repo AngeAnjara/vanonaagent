@@ -87,6 +87,22 @@ def unload_user_chats(username: str | None = None):
     print(f"Unloaded {len(to_remove)} chats for user {username}")
 
 
+def unload_all_chats():
+    """Remove all non-BACKGROUND contexts from memory for strict per-user isolation."""
+    from agent import AgentContext, AgentContextType
+    to_remove: list[str] = []
+    for ctx_id, ctx in list(AgentContext._contexts.items()):
+        if getattr(ctx, "type", None) == AgentContextType.BACKGROUND:
+            continue
+        to_remove.append(ctx_id)
+    for ctx_id in to_remove:
+        try:
+            del AgentContext._contexts[ctx_id]
+        except Exception:
+            pass
+    print(f"Unloaded {len(to_remove)} contexts (non-BACKGROUND)")
+
+
 def load_tmp_chats(username: str | None = None, reload: bool = False):
     """Load contexts from the chats folder; if username is provided, only that user's chats, else all.
     If reload=True, unload existing contexts for that user first.
@@ -130,6 +146,10 @@ def load_tmp_chats(username: str | None = None, reload: bool = False):
                 if not hasattr(ctx, "metadata"):
                     ctx.metadata = {}
                 ctx.metadata["owner"] = owner
+            # Security: if loading for a specific username, skip mismatched owners
+            if username and owner and owner != username:
+                print(f"Skipping context {ctx.id} for user {username}: owned by {owner}")
+                continue
             ctxids.append(ctx.id)
         except Exception as e:
             print(f"Error loading chat {file}: {e}")

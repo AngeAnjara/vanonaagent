@@ -4,7 +4,8 @@
     <div class="section-title">Gestion des Utilisateurs</div>
     <div class="section-description">Créer, modifier et supprimer des utilisateurs. Seuls les administrateurs ont accès à cette section.</div>
 
-    <div class="field field-full" x-data="$store.userManagementStore" x-init="init()">
+    <template x-if="$store.userManagementStore">
+      <div class="field field-full" x-data="$store.userManagementStore" x-init="init()">
       <!-- Header actions -->
       <div class="field-control" style="display:flex; gap:.5rem; align-items:center; flex-wrap:wrap;">
         <button class="btn btn-ok" @click="openCreateForm()">
@@ -119,6 +120,9 @@
           <button class="btn btn-cancel" style="background:#b00020;color:#fff;" @click="deleteUser()">Supprimer</button>
         </div>
       </div>
+
+      </div>
+    </template>
 
     </div>
   </div>

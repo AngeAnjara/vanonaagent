@@ -1,3 +1,23 @@
+## Multi-User Chat Isolation
+
+Agent Zero applique une isolation stricte des chats par utilisateur:
+
+- À la connexion, seuls les chats de l'utilisateur connecté sont chargés en mémoire.
+- À la déconnexion, tous les contextes non-BACKGROUND sont déchargés de la mémoire.
+- Les administrateurs peuvent charger/voir tous les chats via le Users Dashboard.
+- Le backend filtre les contextes par propriétaire dans `/poll` et le frontend masque toute entrée non autorisée.
+
+Notes:
+- Sur des installations héritées, les anciens chats sans `metadata.owner` sont traités comme appartenant à l'admin et ne sont pas visibles par les utilisateurs réguliers tant qu'ils ne sont pas réassignés.
+- Les fichiers sont stockés sous `tmp/chats/{username}/{chat_id}/`; seuls les chats portant `metadata.owner === username` sont visibles par cet utilisateur.
+
+### Dépannage
+
+Si un utilisateur voit des chats qui ne lui appartiennent pas:
+1. Se déconnecter puis se reconnecter (force le rechargement isolé).
+2. Vérifier le rôle de l'utilisateur dans la base (admin vs user).
+3. Inspecter la console du navigateur: `Alpine.store('auth')` et logs `[Auth Store]`.
+4. Consulter les logs du serveur pour des messages de chargement/déchargement de chats.
 # Usage Guide
 This guide explores usage and configuration scenarios for Agent Zero. You can consider this as a reference post-installation guide.
 

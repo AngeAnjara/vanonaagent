@@ -1,3 +1,4 @@
+from python.helpers.persist_chat import unload_all_chats
 import asyncio
 from datetime import timedelta
 import os
@@ -184,17 +185,31 @@ async def login():
                 user_management.update_last_login(user['id'])
             except Exception:
                 pass
+            # Strict isolation: unload all non-BACKGROUND contexts before loading this user's chats
+            try:
+                unload_all_chats()
+            except Exception:
+                pass
             # Reload chats for this user without tying to request loop.
             # Schedule on the shared DeferredTask event loop; do not await.
             try:
                 if user['role'] == user_management.ROLE_ADMIN:
                     # None => load all users' chats for admin
-                    initialize.initialize_chats(None, reload=True)
+                    initialize.initialize_chats(None, reload=False)
                 else:
                     # Load only this user's chats
-                    initialize.initialize_chats(user['username'], reload=True)
+                    initialize.initialize_chats(user['username'], reload=False)
             except Exception as e:
+                # Ensure no stale contexts are left; fail login gracefully
                 print(f"Error scheduling chat reload for user {user['username']}: {e}")
+                try:
+                    unload_all_chats()
+                except Exception:
+                    pass
+                session.clear()
+                error = "Unable to load chats. Please try again."
+                login_page_content = files.read_file("webui/login.html")
+                return render_template_string(login_page_content, error=error)
 
             return redirect(url_for('serve_index'))
         else:
@@ -205,6 +220,10 @@ async def login():
 
 @webapp.route("/logout")
 async def logout():
+    try:
+        unload_all_chats()
+    except Exception:
+        pass
     session.clear()
     return redirect(url_for('login'))
 
