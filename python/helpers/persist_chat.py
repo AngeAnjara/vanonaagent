@@ -186,7 +186,7 @@ def _migrate_legacy_chats():
     for entry in entries:
         # If entry contains a chat.json directly, move into admin namespace
         legacy_path = files.get_abs_path(CHATS_FOLDER, entry, CHAT_FILE_NAME)
-        if files.file_exists(legacy_path):
+        if files.exists(legacy_path):
             new_path = _get_chat_file_path(entry, "admin")
             files.make_dirs(new_path)
             files.move_file(legacy_path, new_path)

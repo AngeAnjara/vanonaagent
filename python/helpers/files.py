@@ -364,6 +364,18 @@ def fix_dev_path(path:str):
     return get_abs_path(path)
 
 def exists(*relative_paths):
+    """Check path existence. Accepts absolute or project-relative paths.
+    - If the first argument is absolute, use it as-is joined with the rest.
+    - Otherwise, resolve relative to the project base directory.
+    """
+    if not relative_paths:
+        return False
+    first = relative_paths[0]
+    # If absolute, do not prefix base dir; still allow joining with additional segments
+    if os.path.isabs(first):
+        path = os.path.join(first, *relative_paths[1:]) if len(relative_paths) > 1 else first
+        return os.path.exists(path)
+    # Relative to base dir
     path = get_abs_path(*relative_paths)
     return os.path.exists(path)
 

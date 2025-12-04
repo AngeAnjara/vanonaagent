@@ -53,7 +53,7 @@ class NotifyUserTool(Tool):
             files.make_dirs(path)
             user_file = files.get_abs_path(path, f"{target}.json")
             existing = []
-            if files.file_exists(user_file):
+            if files.exists(user_file):
                 try:
                     existing = json.loads(files.read_file(user_file)) or []
                 except Exception:
